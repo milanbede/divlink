@@ -1,0 +1,49 @@
+body {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Courier New', monospace;
+    margin: 0;
+    padding: 20px;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+#terminal {
+    background-color: #000000;
+    border: 1px solid #333;
+    padding: 15px;
+    height: calc(100vh - 70px); /* Full viewport height minus body padding and some margin */
+    overflow-y: auto;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+#output div {
+    margin-bottom: 5px;
+    word-wrap: break-word;
+}
+
+.prompt-line {
+    display: flex;
+    align-items: center;
+}
+
+.prompt, .prompt-echo {
+    color: #569cd6; /* A common prompt color, e.g., PowerShell blue */
+    margin-right: 8px;
+    user-select: none;
+}
+
+#commandInput {
+    background-color: transparent;
+    border: none;
+    color: #d4d4d4;
+    font-family: inherit;
+    font-size: inherit;
+    outline: none;
+    flex-grow: 1;
+    padding: 0;
+}
+
+#commandInput:focus {
+    /* Basic focus indication, browser default is usually fine */
+}

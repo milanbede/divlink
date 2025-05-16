@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bible Terminal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div id="terminal">
+        <div id="output">
+            <div>Welcome to Bible Terminal!</div>
+            <div>Type your query below and press Enter.</div>
+            <div>&nbsp;</div>
+        </div>
+        <div class="prompt-line">
+            <span class="prompt">&gt;</span>
+            <input type="text" id="commandInput" autofocus>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const commandInput = document.getElementById('commandInput');
+            const outputDiv = document.getElementById('output');
+
+            commandInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const command = commandInput.value.trim();
+                    if (command) {
+                        // Display command in output
+                        const commandElement = document.createElement('div');
+                        commandElement.innerHTML = `<span class="prompt-echo">&gt;</span> ${escapeHtml(command)}`;
+                        outputDiv.appendChild(commandElement);
+
+                        // Placeholder for future functionality
+                        const responseElement = document.createElement('div');
+                        responseElement.textContent = `Processing: "${escapeHtml(command)}" (LLM/DB integration pending)`;
+                        outputDiv.appendChild(responseElement);
+                        outputDiv.appendChild(document.createElement('br'));
+
+                        commandInput.value = ''; // Clear input
+                    }
+                    // Scroll to bottom
+                    outputDiv.scrollTop = outputDiv.scrollHeight;
+                    commandInput.focus(); // Keep focus on input
+                }
+            });
+
+            function escapeHtml(unsafe) {
+                return unsafe
+                     .replace(/&/g, "&amp;")
+                     .replace(/</g, "&lt;")
+                     .replace(/>/g, "&gt;")
+                     .replace(/"/g, "&quot;")
+                     .replace(/'/g, "&#039;");
+            }
+
+            // Focus on input when clicking anywhere in the terminal
+            document.getElementById('terminal').addEventListener('click', () => {
+                commandInput.focus();
+            });
+        });
+    </script>
+</body>
+</html>
