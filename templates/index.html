@@ -15,13 +15,56 @@
         </div>
         <div class="prompt-line">
             <span class="prompt">&gt;</span>
-            <input type="text" id="commandInput" autofocus>
+            <input type="text" id="commandInput" autofocus><span id="customCursor"></span>
         </div>
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const commandInput = document.getElementById('commandInput');
             const outputDiv = document.getElementById('output');
+            const customCursor = document.getElementById('customCursor');
+
+            // Canvas for text width measurement (cached)
+            const getTextWidthCanvas = document.createElement("canvas");
+            const getTextWidthContext = getTextWidthCanvas.getContext("2d");
+
+            function updateCursorPosition() {
+                if (document.activeElement !== commandInput) {
+                    customCursor.style.visibility = 'hidden';
+                    return;
+                }
+                customCursor.style.visibility = 'visible';
+
+                const textBeforeCursor = commandInput.value.substring(0, commandInput.selectionStart);
+                const styles = window.getComputedStyle(commandInput);
+                const font = `${styles.fontStyle} ${styles.fontVariant} ${styles.fontWeight} ${styles.fontSize}/${styles.lineHeight} ${styles.fontFamily}`;
+                
+                getTextWidthContext.font = font;
+                const textMetrics = getTextWidthContext.measureText(textBeforeCursor);
+                const textWidth = textMetrics.width;
+
+                customCursor.style.left = `${commandInput.offsetLeft + textWidth}px`;
+                customCursor.style.top = `${commandInput.offsetTop}px`;
+                customCursor.style.height = `${commandInput.offsetHeight}px`;
+            }
+
+            commandInput.addEventListener('focus', updateCursorPosition);
+            commandInput.addEventListener('blur', () => {
+                customCursor.style.visibility = 'hidden';
+            });
+            commandInput.addEventListener('input', updateCursorPosition);
+            commandInput.addEventListener('click', updateCursorPosition);
+
+            // For keys that move the caret (arrows, home, end, etc.)
+            // Use a slight delay to ensure caret position is updated before measuring
+            commandInput.addEventListener('keydown', () => {
+                setTimeout(updateCursorPosition, 0);
+            });
+             // Call once on load in case of autofocus
+            if (document.activeElement === commandInput) {
+                updateCursorPosition();
+            }
+
 
             commandInput.addEventListener('keydown', function(event) {
                 if (event.key === 'Enter') {

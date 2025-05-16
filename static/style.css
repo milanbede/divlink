@@ -68,19 +68,29 @@ body {
     outline: none;
     flex-grow: 1;
     padding: 0;
-    /* For blinking cursor effect */
-    border-right: 2px solid #00ff00; /* Cursor appearance */
-    animation: blinkCursor 1s step-end infinite;
     caret-color: transparent; /* Hide the default browser caret */
 }
 
-@keyframes blinkCursor {
-    from, to { border-right-color: #00ff00; } /* Cursor visible */
-    50% { border-right-color: transparent; } /* Cursor invisible */
+#customCursor {
+    position: absolute;
+    display: inline-block;
+    width: 1ch; /* Width of one character */
+    background-color: #00ff00; /* Matrix green */
+    pointer-events: none; /* So it doesn't interfere with input field clicks */
+    z-index: 3; /* Above other prompt-line content if needed */
+    visibility: hidden; /* Initially hidden, JS will manage visibility */
+    animation: blinkCustomCursor 1s step-end infinite;
 }
 
+@keyframes blinkCustomCursor {
+    0%, 100% { background-color: #00ff00; } /* Visible */
+    50% { background-color: transparent; }    /* Invisible */
+}
+
+/* Old blinkCursor keyframes are no longer needed */
+
 #commandInput:focus {
-    /* The blinking border-right serves as a focus indicator.
+    /* The custom cursor now serves as the focus indicator.
        If you want an additional outline on focus, you can add it here.
        e.g., outline: 1px dashed rgba(0, 255, 0, 0.5); */
 }
