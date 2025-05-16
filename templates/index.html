@@ -55,9 +55,17 @@
             commandInput.addEventListener('input', updateCursorPosition);
             commandInput.addEventListener('click', updateCursorPosition);
 
-            // For keys that move the caret (arrows, home, end, etc.)
-            // Use a slight delay to ensure caret position is updated before measuring
-            commandInput.addEventListener('keydown', () => {
+            // For keys that move the caret (arrows, home, end, etc.) or modify text.
+            // Use a slight delay to ensure caret position is updated before measuring.
+            commandInput.addEventListener('keydown', (event) => {
+                // Let the Enter key be handled by its own specific listener.
+                // Also, ignore modifier keys if pressed alone, as they don't move the caret.
+                if (event.key === 'Enter' || event.key === 'Shift' || event.key === 'Control' || event.key === 'Alt' || event.key === 'Meta') {
+                    // If it's Enter, it's handled by the other listener.
+                    // If it's just a modifier, the caret hasn't moved yet.
+                    return;
+                }
+                // For other keys (arrows, backspace, delete, characters), update position after default action.
                 setTimeout(updateCursorPosition, 0);
             });
              // Call once on load in case of autofocus
