@@ -96,15 +96,22 @@
                         commandElement.innerHTML = `<span class="prompt-echo">&gt;</span> ${escapeHtml(command)}`;
                         outputDiv.appendChild(commandElement);
 
+                        // Hide input and cursor during response typing
+                        commandInput.style.visibility = 'hidden';
+                        customCursor.style.visibility = 'hidden';
+
                         // Call typeResponse for the placeholder functionality
                         const responseText = `Processing: "${escapeHtml(command)}" (LLM/DB integration pending)`;
                         typeResponse(responseText, outputDiv, () => {
                             // This callback runs after typing is complete
                             outputDiv.appendChild(document.createElement('br')); // Add line break after response
                             commandInput.value = ''; // Clear input
+                            commandInput.style.visibility = 'visible'; // Show input again
                             outputDiv.scrollTop = outputDiv.scrollHeight; // Scroll to bottom
-                            commandInput.focus(); // Keep focus on input
-                            updateCursorPosition(); // Explicitly update cursor after clearing and focusing
+                            commandInput.focus(); // Keep focus on input, this will trigger updateCursorPosition
+                                                  // and make customCursor visible via its focus listener.
+                            // Explicitly call updateCursorPosition to ensure it's correctly positioned immediately.
+                            updateCursorPosition();
                         });
                     } else {
                         // Handle empty command: echo an empty prompt and add a line break
