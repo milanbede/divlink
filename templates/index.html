@@ -104,6 +104,7 @@
                             commandInput.value = ''; // Clear input
                             outputDiv.scrollTop = outputDiv.scrollHeight; // Scroll to bottom
                             commandInput.focus(); // Keep focus on input
+                            updateCursorPosition(); // Explicitly update cursor after clearing and focusing
                         });
                     } else {
                         // Handle empty command: echo an empty prompt and add a line break
@@ -115,6 +116,7 @@
                         commandInput.value = ''; // Ensure it's cleared
                         outputDiv.scrollTop = outputDiv.scrollHeight; // Scroll to bottom
                         commandInput.focus(); // Keep focus on input
+                        updateCursorPosition(); // Explicitly update cursor after clearing and focusing
                     }
                 }
             });
