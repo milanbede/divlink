@@ -23,10 +23,11 @@
             const commandInput = document.getElementById('commandInput');
             const outputDiv = document.getElementById('output');
             const customCursor = document.getElementById('customCursor');
+            const textMeasurer = document.getElementById('textMeasurer'); // Get reference to the new span
 
-            // Canvas for text width measurement (cached)
-            const getTextWidthCanvas = document.createElement("canvas");
-            const getTextWidthContext = getTextWidthCanvas.getContext("2d");
+            // Canvas related variables are no longer needed
+            // const getTextWidthCanvas = document.createElement("canvas");
+            // const getTextWidthContext = getTextWidthCanvas.getContext("2d");
 
             function updateCursorPosition() {
                 if (document.activeElement !== commandInput) {
@@ -37,11 +38,22 @@
 
                 const textBeforeCursor = commandInput.value.substring(0, commandInput.selectionStart);
                 const styles = window.getComputedStyle(commandInput);
-                const font = `${styles.fontStyle} ${styles.fontVariant} ${styles.fontWeight} ${styles.fontSize}/${styles.lineHeight} ${styles.fontFamily}`;
 
-                getTextWidthContext.font = font;
-                const textMetrics = getTextWidthContext.measureText(textBeforeCursor);
-                const textWidth = textMetrics.width;
+                // Apply necessary styles from input to the measurer span
+                textMeasurer.style.fontFamily = styles.fontFamily;
+                textMeasurer.style.fontSize = styles.fontSize;
+                textMeasurer.style.fontWeight = styles.fontWeight;
+                textMeasurer.style.fontStyle = styles.fontStyle;
+                textMeasurer.style.fontVariant = styles.fontVariant;
+                textMeasurer.style.letterSpacing = styles.letterSpacing;
+                textMeasurer.style.wordSpacing = styles.wordSpacing;
+                // textMeasurer.style.paddingLeft = styles.paddingLeft; // Usually not needed if measuring text part only
+                // textMeasurer.style.paddingRight = styles.paddingRight;
+
+                // Set the text content to measure
+                textMeasurer.textContent = textBeforeCursor;
+
+                const textWidth = textMeasurer.offsetWidth;
 
                 customCursor.style.left = `${commandInput.offsetLeft + textWidth}px`;
                 customCursor.style.top = `${commandInput.offsetTop}px`;
@@ -144,5 +156,6 @@
             });
         });
     </script>
+    <span id="textMeasurer"></span> <!-- Add the measurer span here -->
 </body>
 </html>

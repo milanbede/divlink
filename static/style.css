@@ -94,3 +94,12 @@ body {
        If you want an additional outline on focus, you can add it here.
        e.g., outline: 1px dashed rgba(0, 255, 0, 0.5); */
 }
+
+#textMeasurer {
+    position: absolute;
+    visibility: hidden;
+    height: auto;
+    width: auto;
+    white-space: pre; /* Crucial for measuring spaces like in an input */
+    /* Styles like font, letter-spacing, etc., will be copied dynamically via JS */
+}
