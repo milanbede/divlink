@@ -38,7 +38,7 @@
                 const textBeforeCursor = commandInput.value.substring(0, commandInput.selectionStart);
                 const styles = window.getComputedStyle(commandInput);
                 const font = `${styles.fontStyle} ${styles.fontVariant} ${styles.fontWeight} ${styles.fontSize}/${styles.lineHeight} ${styles.fontFamily}`;
-                
+
                 getTextWidthContext.font = font;
                 const textMetrics = getTextWidthContext.measureText(textBeforeCursor);
                 const textWidth = textMetrics.width;
