@@ -24,6 +24,7 @@
             const outputDiv = document.getElementById('output');
             const customCursor = document.getElementById('customCursor');
             const textMeasurer = document.getElementById('textMeasurer'); // Get reference to the new span
+            const promptLine = commandInput.parentElement; // Get reference to the prompt line container
 
             // Canvas related variables are no longer needed
             // const getTextWidthCanvas = document.createElement("canvas");
@@ -96,9 +97,8 @@
                         commandElement.innerHTML = `<span class="prompt-echo">&gt;</span> ${escapeHtml(command)}`;
                         outputDiv.appendChild(commandElement);
 
-                        // Hide input and cursor during response typing
-                        commandInput.style.visibility = 'hidden';
-                        customCursor.style.visibility = 'hidden';
+                        // Hide the entire prompt line during response typing
+                        promptLine.style.visibility = 'hidden';
 
                         // Call typeResponse for the placeholder functionality
                         const responseText = `Processing: "${escapeHtml(command)}" (LLM/DB integration pending)`;
@@ -106,10 +106,11 @@
                             // This callback runs after typing is complete
                             outputDiv.appendChild(document.createElement('br')); // Add line break after response
                             commandInput.value = ''; // Clear input
-                            commandInput.style.visibility = 'visible'; // Show input again
+                            promptLine.style.visibility = 'visible'; // Show the prompt line again
                             outputDiv.scrollTop = outputDiv.scrollHeight; // Scroll to bottom
-                            commandInput.focus(); // Keep focus on input, this will trigger updateCursorPosition
-                                                  // and make customCursor visible via its focus listener.
+                            commandInput.focus(); // Keep focus on input. This will also trigger
+                                                  // updateCursorPosition via the 'focus' event listener,
+                                                  // which in turn makes the customCursor visible.
                             // Explicitly call updateCursorPosition to ensure it's correctly positioned immediately.
                             updateCursorPosition();
                         });
