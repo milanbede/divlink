@@ -1,7 +1,7 @@
 body {
-    background-color: #1e1e1e;
-    color: #d4d4d4;
-    font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Courier New', monospace;
+    background-color: #000000; /* Black background */
+    color: #00ff00; /* Bright green text */
+    font-family: 'Lucida Console', Monaco, 'Courier New', monospace; /* Classic terminal font */
     margin: 0;
     padding: 20px;
     font-size: 16px;
@@ -9,26 +9,52 @@ body {
 }
 
 #terminal {
-    background-color: #000000;
-    border: 1px solid #333;
+    background-color: #050505; /* Very dark grey, almost black */
+    border: 1px solid #00ff00; /* Green border */
     padding: 15px;
     height: calc(100vh - 70px); /* Full viewport height minus body padding and some margin */
     overflow-y: auto;
-    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    box-shadow: 0 0 15px #00ff00, inset 0 0 10px rgba(0, 128, 0, 0.7); /* Green glow, inner green shadow for depth */
+    position: relative; /* For scanlines pseudo-element */
+}
+
+/* Scanline effect */
+#terminal::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 255, 0, 0.05), /* Fainter green lines */
+        rgba(0, 255, 0, 0.05) 1px,
+        transparent 1px,
+        transparent 3px /* Adjust line thickness and spacing */
+    );
+    pointer-events: none; /* So it doesn't interfere with clicks */
+    z-index: 1; /* Behind content */
 }
 
 #output div {
     margin-bottom: 5px;
     word-wrap: break-word;
+    text-shadow: 0 0 4px #00ff00; /* Green glow for text */
+    position: relative; /* To ensure it's above scanlines */
+    z-index: 2;
 }
 
 .prompt-line {
     display: flex;
     align-items: center;
+    position: relative; /* To ensure it's above scanlines */
+    z-index: 2;
 }
 
 .prompt, .prompt-echo {
-    color: #569cd6; /* A common prompt color, e.g., PowerShell blue */
+    color: #00ff00; /* Green prompt */
+    text-shadow: 0 0 4px #00ff00; /* Matching glow for prompt */
     margin-right: 8px;
     user-select: none;
 }
@@ -36,14 +62,25 @@ body {
 #commandInput {
     background-color: transparent;
     border: none;
-    color: #d4d4d4;
+    color: #00ff00; /* Green input text */
     font-family: inherit;
     font-size: inherit;
     outline: none;
     flex-grow: 1;
     padding: 0;
+    /* For blinking cursor effect */
+    border-right: 2px solid #00ff00; /* Cursor appearance */
+    animation: blinkCursor 1s step-end infinite;
+    caret-color: transparent; /* Hide the default browser caret */
+}
+
+@keyframes blinkCursor {
+    from, to { border-right-color: #00ff00; } /* Cursor visible */
+    50% { border-right-color: transparent; } /* Cursor invisible */
 }
 
 #commandInput:focus {
-    /* Basic focus indication, browser default is usually fine */
+    /* The blinking border-right serves as a focus indicator.
+       If you want an additional outline on focus, you can add it here.
+       e.g., outline: 1px dashed rgba(0, 255, 0, 0.5); */
 }

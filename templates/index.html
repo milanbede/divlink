@@ -33,19 +33,50 @@
                         commandElement.innerHTML = `<span class="prompt-echo">&gt;</span> ${escapeHtml(command)}`;
                         outputDiv.appendChild(commandElement);
 
-                        // Placeholder for future functionality
-                        const responseElement = document.createElement('div');
-                        responseElement.textContent = `Processing: "${escapeHtml(command)}" (LLM/DB integration pending)`;
-                        outputDiv.appendChild(responseElement);
-                        outputDiv.appendChild(document.createElement('br'));
+                        // Call typeResponse for the placeholder functionality
+                        const responseText = `Processing: "${escapeHtml(command)}" (LLM/DB integration pending)`;
+                        typeResponse(responseText, outputDiv, () => {
+                            // This callback runs after typing is complete
+                            outputDiv.appendChild(document.createElement('br')); // Add line break after response
+                            commandInput.value = ''; // Clear input
+                            outputDiv.scrollTop = outputDiv.scrollHeight; // Scroll to bottom
+                            commandInput.focus(); // Keep focus on input
+                        });
+                    } else {
+                        // Handle empty command: echo an empty prompt and add a line break
+                        const commandElement = document.createElement('div');
+                        commandElement.innerHTML = `<span class="prompt-echo">&gt;</span>&nbsp;`; // Echo empty prompt with a non-breaking space
+                        outputDiv.appendChild(commandElement);
+                        outputDiv.appendChild(document.createElement('br')); // Add a line break
 
-                        commandInput.value = ''; // Clear input
+                        commandInput.value = ''; // Ensure it's cleared
+                        outputDiv.scrollTop = outputDiv.scrollHeight; // Scroll to bottom
+                        commandInput.focus(); // Keep focus on input
                     }
-                    // Scroll to bottom
-                    outputDiv.scrollTop = outputDiv.scrollHeight;
-                    commandInput.focus(); // Keep focus on input
                 }
             });
+
+            function typeResponse(text, container, callback) {
+                const responseElement = document.createElement('div');
+                container.appendChild(responseElement);
+                let i = 0;
+                const typingSpeed = 30; // Milliseconds per character (adjust for desired speed)
+
+                function typeChar() {
+                    if (i < text.length) {
+                        responseElement.textContent += text.charAt(i);
+                        i++;
+                        // Optional: Add a subtle flicker or effect per character here for more CRT feel
+                        setTimeout(typeChar, typingSpeed);
+                    } else {
+                        // Typing finished
+                        if (callback) {
+                            callback();
+                        }
+                    }
+                }
+                typeChar(); // Start typing
+            }
 
             function escapeHtml(unsafe) {
                 return unsafe
