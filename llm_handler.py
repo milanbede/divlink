@@ -261,9 +261,14 @@ Begin."""
                         "error": "No valid references found in LLM output after retries."
                     }, 500
 
-                selected_index = random.choices(
-                    range(len(valid_refs)), weights=weights, k=1
-                )[0]
+                # Prefer perfect relevance/helpfulness (10/10) if present
+                perfect_indices = [i for i, w in enumerate(weights) if w == 20]
+                if perfect_indices:
+                    selected_index = random.choice(perfect_indices)
+                else:
+                    selected_index = random.choices(
+                        range(len(valid_refs)), weights=weights, k=1
+                    )[0]
                 passage_reference = valid_refs[selected_index]
                 selected_weight = weights[selected_index]
 
