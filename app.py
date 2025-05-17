@@ -215,7 +215,7 @@ Begin."""
     # Initialize or retrieve conversation history from session
     if 'conversation_history' not in session:
         session['conversation_history'] = [{"role": "system", "content": base_prompt_text}]
-    
+
     # Add current user query to history
     # Simple cap on history length to prevent it from growing too large
     MAX_HISTORY_PAIRS = 5 # Number of user/assistant message pairs
@@ -225,7 +225,7 @@ Begin."""
     if len(current_history) > (MAX_HISTORY_PAIRS * 2 + 1): # +1 for system prompt
         # Keep system prompt and last MAX_HISTORY_PAIRS exchanges
         current_history = [current_history[0]] + current_history[-(MAX_HISTORY_PAIRS * 2):]
-    
+
     # The 'prompt' variable is no longer directly used for the API call messages.
     # The 'current_history' list serves as the messages payload.
 
@@ -235,13 +235,13 @@ Begin."""
     for attempt in range(max_retries):
         try:
             app.logger.info(f"Attempt {attempt + 1} for query: '{user_query}'. History length: {len(current_history)}")
-            
+
             completion = client.chat.completions.create(
                 model="deepseek/deepseek-r1-distill-qwen-32b:free", # Or your chosen model
                 messages=current_history,
                 # temperature=0.7, # Optional: Adjust creativity
             )
-            
+
             raw_llm_output = completion.choices[0].message.content if completion.choices else ""
 
             if not raw_llm_output or not raw_llm_output.strip():
@@ -386,7 +386,7 @@ Begin."""
                             "response": "LLM did not return the expected JSON format after multiple attempts. Please try again."
                         }
                     )
-        
+
         # OpenAI SDK specific error handling
         except APIConnectionError as e:
             app.logger.error(f"OpenAI APIConnectionError on attempt {attempt + 1}: {e}")
