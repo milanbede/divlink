@@ -55,6 +55,23 @@ def query_llm():
     # The handler will manage session history internally.
     result, status_code = llm_handler.get_llm_bible_reference(session, user_query)
 
+    if status_code != 200:
+        app.logger.error(
+            f"LLM query failed with status {status_code}. Error: {result.get('error', 'Unknown error')}. Serving a random psalm or fallback."
+        )
+        passage_text = bible_parser.get_random_psalm_passage()
+        if passage_text is None:
+            app.logger.error(
+                "Failed to retrieve a random Psalm for fallback. Serving a hardcoded verse."
+            )
+            fallback_verse = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n- John 3:16"
+            return jsonify({"response": fallback_verse, "score": None}), 200
+        else:
+            app.logger.info(
+                "Successfully served a random Psalm as fallback to failed LLM query."
+            )
+            return jsonify({"response": passage_text, "score": None}), 200
+
     return jsonify(result), status_code
 
 
