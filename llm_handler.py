@@ -95,8 +95,8 @@ Begin."""
         content = raw_llm_output.strip()
 
         # Remove code fences if present (handles ```json ... ``` or ``` ... ```)
-        fence_pattern = re.compile(r"^```(?:json)?\s*([\s\S]*?)\s*```$", re.DOTALL)
-        match = fence_pattern.match(content)
+        fence_pattern = re.compile(r"```(?:json)?\s*([\s\S]*?)\s*```", re.DOTALL)
+        match = fence_pattern.search(content)
         if match:
             content = match.group(1).strip()
 
@@ -205,9 +205,7 @@ Begin."""
                 raw_llm_output = (
                     completion.choices[0].message.content if completion.choices else ""
                 )
-                prompt_tokens = (
-                    completion.usage.prompt_tokens if completion.usage else 0
-                )
+                prompt_tokens = completion.usage.prompt_tokens if completion.usage else 0
                 completion_tokens = (
                     completion.usage.completion_tokens if completion.usage else 0
                 )
