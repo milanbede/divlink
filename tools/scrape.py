@@ -162,7 +162,7 @@ def parse_index_page(html_content):
     # It also handles potential leading/trailing whitespace around the line or components.
     line_pattern = re.compile(r"^\s*-\s*\[\s*([^\]]+?)\s*\]\s*\(\s*([^)]+?)\s*\)\s*$")
 
-    for line in html_content.strip().split('\n'):
+    for line in html_content.strip().split("\n"):
         line_match = line_pattern.match(line.strip())
         if line_match:
             book_name_text = line_match.group(1).strip()
@@ -171,14 +171,16 @@ def parse_index_page(html_content):
             # Filter by typical book URL pattern: CODE + chapter_number + .htm
             # e.g., GEN01.htm, PSA001.htm, 1SA01.htm, S3Y01.htm
             # This regex also ensures the href is for a .htm file.
-            url_match = re.match(r"^([A-Z0-9]{2,5})(\d{2,3})\.htm$", href, re.IGNORECASE)
+            url_match = re.match(
+                r"^([A-Z0-9]{2,5})(\d{2,3})\.htm$", href, re.IGNORECASE
+            )
             if url_match:
                 abbrev_candidate = url_match.group(1).upper()
 
                 if book_name_text in ["Preface", "Public Domain"]:
                     print(f"Skipping non-book entry: {book_name_text}")
                     continue
-                
+
                 # Apostrophes in book names like "3 Holy Children's Song" are handled fine by most
                 # OS for filenames, so no replacement is strictly needed for 'filename_base'.
                 # If issues arise, book_name_text.replace("'", "") could be used for filename_base.
@@ -194,7 +196,7 @@ def parse_index_page(html_content):
             #     # This condition means the extracted href didn't match the expected book chapter URL pattern.
             #     # Original code had a commented-out print here. Keeping it silent unless debugging is needed.
             #     # print(f"Skipping link: {book_name_text} ({href}) - does not match expected book URL pattern.")
-                
+
     return books_info
 
 
