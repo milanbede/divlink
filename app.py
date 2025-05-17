@@ -251,26 +251,31 @@ def query_llm():
 
                 # Check if get_passage_from_json returned an error message
                 lookup_error_prefixes = (
-                    "Error: Bible data not loaded", 
-                    "Book '", 
-                    "Chapter ", # e.g., "Chapter 5 not found..."
-                    "Start verse ", 
-                    "End verse ", 
-                    "No verses found for '"
+                    "Error: Bible data not loaded",
+                    "Book '",
+                    "Chapter ",  # e.g., "Chapter 5 not found..."
+                    "Start verse ",
+                    "End verse ",
+                    "No verses found for '",
                 )
                 is_lookup_error = False
-                if isinstance(passage_text, str): # Ensure it's a string before checking prefixes
+                if isinstance(
+                    passage_text, str
+                ):  # Ensure it's a string before checking prefixes
                     for prefix in lookup_error_prefixes:
                         if passage_text.startswith(prefix):
                             # More specific check for "Chapter ", "Start verse ", "End verse "
                             if prefix in ["Chapter ", "Start verse ", "End verse "]:
-                                if "not found" in passage_text or "is invalid" in passage_text:
+                                if (
+                                    "not found" in passage_text
+                                    or "is invalid" in passage_text
+                                ):
                                     is_lookup_error = True
                                     break
-                            else: # For other prefixes, the prefix itself is enough
+                            else:  # For other prefixes, the prefix itself is enough
                                 is_lookup_error = True
                                 break
-                
+
                 if is_lookup_error:
                     app.logger.error(
                         f"Bible lookup error for LLM reference '{passage_reference}': {passage_text}"
