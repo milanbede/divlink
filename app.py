@@ -35,7 +35,9 @@ seeder.initialize_seeding()
 bible_parser = BibleParser(app.logger)
 
 # Initialize LLMHandler
-llm_handler = LLMHandler(client, app.logger, bible_parser)
+llm_handler = LLMHandler(
+    client, app.logger, bible_parser, "deepseek/deepseek-r1-distill-qwen-32b:free"
+)
 
 
 @app.route("/")

@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import matplotlib.pyplot as plt  # Added for radar chart
 import numpy as np  # Added for radar chart
+from tqdm import tqdm
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -34,19 +35,19 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 )
 class TestFaithBenchIntegration(unittest.TestCase):
     MODELS_TO_TEST = [
-        "deepseek/deepseek-r1-distill-qwen-32b:free",
-        "meta-llama/llama-4-maverick:free",
-        "meta-llama/llama-4-scout:free",
-        "meta-llama/llama-3.3-8b-instruct:free",
-        "microsoft/phi-4-reasoning-plus:free",
-        "deepseek/deepseek-chat-v3-0324:free",
-        "deepseek/deepseek-r1:free",
-        "qwen/qwen3-235b-a22b:free",
-        "google/gemma-3-27b-it:free",
+        # "deepseek/deepseek-r1-distill-qwen-32b:free",
+        # "meta-llama/llama-4-maverick:free",
+        # "meta-llama/llama-4-scout:free",
+        # "meta-llama/llama-3.3-8b-instruct:free",
+        # "microsoft/phi-4-reasoning-plus:free",
+        # "deepseek/deepseek-chat-v3-0324:free",
+        # "deepseek/deepseek-r1:free",
+        # "qwen/qwen3-235b-a22b:free",
+        # "google/gemma-3-27b-it:free",
         "google/gemma-3-12b-it:free",
-        "mistralai/mistral-nemo:free",
-        "mistralai/mistral-small-3.1-24b-instruct:free",
-        "qwen/qwen3-30b-a3b:free",
+        # "mistralai/mistral-nemo:free",
+        # "mistralai/mistral-small-3.1-24b-instruct:free",
+        # "qwen/qwen3-30b-a3b:free",
     ]
 
     def setUp(self):
@@ -113,6 +114,13 @@ class TestFaithBenchIntegration(unittest.TestCase):
             category_success_counts = {cat: 0 for cat in all_test_data_sources}
             category_total_counts = {cat: 0 for cat in all_test_data_sources}
 
+            progress_bar = tqdm(
+                total=len(all_test_cases),
+                desc=f"Model: {model_name}",
+                position=self.MODELS_TO_TEST.index(model_name),
+                leave=True,
+            )
+
             for case in all_test_cases:
                 category = case["category"]
                 category_total_counts[category] += 1
@@ -152,9 +160,13 @@ class TestFaithBenchIntegration(unittest.TestCase):
                         found = True
                         break
 
+                progress_bar.update(1)
+
                 if found:
                     model_specific_success_count += 1
                     category_success_counts[category] += 1
+
+            progress_bar.close()
 
             avg_latency = (
                 (model_total_latency / model_prompt_count_for_latency)

@@ -228,9 +228,7 @@ Begin."""
                     self._update_conversation_history(
                         session, current_history, user_query, raw_llm_output
                     )
-                    return {
-                        "response": "LLM returned an empty response after multiple attempts. Please try rephrasing."
-                    }, 200  # Return 200 for client to display
+                    return {"response": ""}, 500  # Return 200 for client to display
 
                 extracted_json_str = self._extract_json_from_llm_output(raw_llm_output)
                 self.logger.debug(
@@ -287,9 +285,7 @@ Begin."""
                     self._update_conversation_history(
                         session, current_history, user_query, raw_llm_output
                     )
-                    return {
-                        "response": "LLM did not provide any usable Bible references after multiple attempts. Please try rephrasing."
-                    }, 200
+                    return {"response": ""}, 500
 
                 selected_index = random.choices(
                     range(len(valid_refs)), weights=weights, k=1
@@ -417,9 +413,7 @@ Begin."""
                 self._update_conversation_history(
                     session, current_history, user_query, raw_llm_output
                 )
-                return {
-                    "response": "LLM did not return the expected JSON format after multiple attempts. Please try again."
-                }, 200
+                return {"response": ""}, 500
 
             except APIConnectionError as e:
                 self.logger.error(
