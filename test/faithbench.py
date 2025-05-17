@@ -85,7 +85,9 @@ class TestFaithBenchIntegration(unittest.TestCase):
         total_cases = len(ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY)
         results_summary = []
 
-        for i, case in enumerate(tqdm(ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY, desc="FaithBench Progress")):
+        for i, case in enumerate(
+            tqdm(ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY, desc="FaithBench Progress")
+        ):
             with self.subTest(category=case["category"], prompt=case["prompt"]):
                 mock_session = {}  # Simulate Flask session for conversation history
 
