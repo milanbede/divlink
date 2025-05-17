@@ -2,6 +2,7 @@ import os
 import requests
 import json
 import re  # For parsing Bible references
+import random # For selecting a random reference
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 
@@ -175,7 +176,7 @@ def query_llm():
 
     base_prompt_text = """You are a Bible reference guide trained to help people find direct, relevant verses from the Bible that speak to their questions, challenges, or sins. You do not paraphrase, interpret, or soften God’s Word.
 
-Your role is to return specific Bible references only (e.g., “Proverbs 3:5–6” or “Matthew 10:34”), without commentary. You may include multiple verses if relevant.
+Your role is to return a JSON object containing a list of specific Bible references. The JSON object should have a single key "references", and its value should be a list of strings, where each string is a Bible reference (e.g., "Proverbs 3:5-6" or "Matthew 10:34"). Provide up to 3 relevant references. Do not include any commentary or other text outside the JSON object.
 
 Assume the person is seeking real truth, not feel-good platitudes. Prioritize verses that reflect:
 	•	The fear of the Lord
@@ -187,17 +188,13 @@ Use only Scripture. Avoid emotional reassurance or modern therapeutic language. 
 
 Example:
 
-Input: “I feel like giving up.”
+Input: "I feel like giving up."
 Output:
-	•	Galatians 6:9
-	•	Isaiah 40:31
-	•	2 Corinthians 4:16–18
+{"references": ["Galatians 6:9", "Isaiah 40:31", "2 Corinthians 4:16-18"]}
 
-Input: “Is homosexuality really a sin?”
+Input: "Is homosexuality really a sin?"
 Output:
-	•	Romans 1:26–27
-	•	1 Corinthians 6:9–10
-	•	Leviticus 18:22
+{"references": ["Romans 1:26-27", "1 Corinthians 6:9-10", "Leviticus 18:22"]}
 
 Begin."""
 
@@ -243,33 +240,51 @@ Begin."""
             try:
                 # Attempt to parse the LLM output as JSON
                 parsed_json = json.loads(raw_llm_output)
-                passage_reference = parsed_json.get("reference")
+                references_list = parsed_json.get("references")
 
-                if not passage_reference or not isinstance(passage_reference, str):
+                if not references_list or not isinstance(references_list, list) or not all(isinstance(ref, str) for ref in references_list):
                     app.logger.warn(
-                        f"LLM response JSON did not contain a valid 'reference' string on attempt {attempt + 1}. Query: {user_query}. Raw output: {raw_llm_output}"
+                        f"LLM response JSON did not contain a valid 'references' list of strings on attempt {attempt + 1}. Query: {user_query}. Raw output: {raw_llm_output}"
                     )
                     if attempt < max_retries - 1:
                         continue  # Retry
                     else:
                         return jsonify(
                             {
-                                "response": "Could not extract a valid passage reference from LLM after multiple attempts. Please try again."
+                                "response": "Could not extract a valid list of passage references from LLM after multiple attempts. Please try again."
+                            }
+                        )
+                
+                if not references_list: # Empty list of references
+                    app.logger.warn(
+                        f"LLM returned an empty list of references on attempt {attempt + 1}. Query: {user_query}. Raw output: {raw_llm_output}"
+                    )
+                    if attempt < max_retries - 1:
+                        continue # Retry
+                    else:
+                        return jsonify(
+                            {
+                                "response": "LLM did not provide any Bible references for your query after multiple attempts. Please try rephrasing."
                             }
                         )
 
-                # Successfully got passage_reference from LLM, now parse it and get text
+                # Randomly select one reference from the list
+                passage_reference = random.choice(references_list)
+                app.logger.info(f"Randomly selected reference: '{passage_reference}' from LLM output: {references_list}")
+
+
+                # Successfully got a passage_reference, now parse it and get text
                 parsed_ref = parse_bible_reference(passage_reference)
                 if not parsed_ref:
                     app.logger.warn(
-                        f"Could not parse LLM reference: '{passage_reference}' for query: {user_query}"
+                        f"Could not parse the selected LLM reference: '{passage_reference}' for query: {user_query}"
                     )
-                    # Retry if LLM output is unparseable as a reference
-                    if attempt < max_retries - 1:
-                        continue
+                    # Do not retry here, as the LLM did provide a list, but the selected one was unparseable.
+                    # This might indicate an issue with the reference format from LLM or our parser.
+                    # For now, inform the user. A more robust solution might try another from the list if available.
                     return jsonify(
                         {
-                            "response": f"Could not understand the Bible reference: '{passage_reference}'. Please try rephrasing your query."
+                            "response": f"Could not understand the selected Bible reference: '{passage_reference}'. Please try rephrasing your query."
                         }
                     )
 
