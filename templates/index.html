@@ -111,7 +111,6 @@
             });
 
             // For keys that move the caret (arrows, home, end, etc.) or modify text.
-            // Use a slight delay to ensure caret position is updated before measuring.
             commandInput.addEventListener('keydown', (event) => {
                 // Let the Enter key be handled by its own specific listener.
                 // Also, ignore modifier keys if pressed alone, as they don't move the caret.
@@ -385,6 +384,19 @@
 
             // Also reset idle timer if user clicks in terminal (might not type but shows activity)
             document.getElementById('terminal').addEventListener('click', resetIdleTimer);
+
+            // Hide the blinking cursor while the user is selecting text,
+            // and restore it once the selection is cleared.
+            document.addEventListener('selectionchange', () => {
+                const selection = window.getSelection();
+                if (document.activeElement === commandInput) {
+                    if (!selection.isCollapsed) {
+                        customCursor.style.visibility = 'hidden';
+                    } else {
+                        updateCursorPosition();
+                    }
+                }
+            });
 
             // Scanlines are now fixed and do not need JavaScript-based position updates.
             // The #terminal::after pseudo-element will have a static background position.
