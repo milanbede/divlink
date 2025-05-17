@@ -130,7 +130,8 @@ def get_passage_from_json(parsed_ref):
 
     if start_verse is None:  # Whole chapter
         for i, verse_text in enumerate(chapter_verses_list):
-            passage_texts.append(f"{chapter_num}:{i+1} {verse_text}")
+            cleaned_verse_text = re.sub(r"\{.*?\}", "", verse_text).strip()
+            passage_texts.append(f"{i+1} {cleaned_verse_text}")
     else:
         start_verse_index = start_verse - 1  # Adjust for 0-based list index
         end_verse_index = (
@@ -146,7 +147,9 @@ def get_passage_from_json(parsed_ref):
             return f"End verse {end_verse} is invalid for {book_data['name']} chapter {chapter_num}."
 
         for i in range(start_verse_index, end_verse_index + 1):
-            passage_texts.append(f"{chapter_num}:{i+1} {chapter_verses_list[i]}")
+            verse_text = chapter_verses_list[i]
+            cleaned_verse_text = re.sub(r"\{.*?\}", "", verse_text).strip()
+            passage_texts.append(f"{i+1} {cleaned_verse_text}")
 
         if start_verse == end_verse:
             output_reference_display += f":{start_verse}"
