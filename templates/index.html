@@ -100,19 +100,49 @@
                         // Hide the entire prompt line during response typing
                         promptLine.style.visibility = 'hidden';
 
-                        // Call typeResponse for the placeholder functionality
-                        const responseText = `Processing: "${escapeHtml(command)}" (LLM/DB integration pending)`;
-                        typeResponse(responseText, outputDiv, () => {
-                            // This callback runs after typing is complete
-                            outputDiv.appendChild(document.createElement('br')); // Add line break after response
-                            commandInput.value = ''; // Clear input
-                            promptLine.style.visibility = 'visible'; // Show the prompt line again
-                            outputDiv.scrollTop = outputDiv.scrollHeight; // Scroll to bottom
-                            commandInput.focus(); // Keep focus on input. This will also trigger
-                                                  // updateCursorPosition via the 'focus' event listener,
-                                                  // which in turn makes the customCursor visible.
-                            // Explicitly call updateCursorPosition to ensure it's correctly positioned immediately.
-                            updateCursorPosition();
+                        fetch('/query', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ query: command }),
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                // Try to parse error from backend if available, then throw
+                                return response.json().then(errData => {
+                                    throw new Error(errData.error || `Server error: ${response.status}`);
+                                }).catch(() => {
+                                    // Fallback if error response is not JSON or no 'error' field
+                                    throw new Error(`Server error: ${response.status}`);
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            const responseText = data.response || "Received no specific response.";
+                            typeResponse(responseText, outputDiv, () => {
+                                // This callback runs after typing is complete
+                                outputDiv.appendChild(document.createElement('br'));
+                                commandInput.value = '';
+                                promptLine.style.visibility = 'visible';
+                                outputDiv.scrollTop = outputDiv.scrollHeight;
+                                commandInput.focus();
+                                updateCursorPosition();
+                            });
+                        })
+                        .catch(error => {
+                            console.error('Fetch Error:', error);
+                            const errorText = `Error: ${escapeHtml(error.message)}`;
+                            typeResponse(errorText, outputDiv, () => {
+                                // This callback runs after typing is complete
+                                outputDiv.appendChild(document.createElement('br'));
+                                commandInput.value = '';
+                                promptLine.style.visibility = 'visible';
+                                outputDiv.scrollTop = outputDiv.scrollHeight;
+                                commandInput.focus();
+                                updateCursorPosition();
+                            });
                         });
                     } else {
                         // Handle empty command: echo an empty prompt and add a line break
