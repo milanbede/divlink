@@ -9,9 +9,11 @@ app = Flask(__name__)
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
+
 @app.route("/")
 def index():
     return render_template("index.html")
+
 
 @app.route("/query", methods=["POST"])
 def query_llm():
@@ -31,42 +33,56 @@ def query_llm():
             headers={
                 "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                 "Content-Type": "application/json",
-                "HTTP-Referer": "http://localhost:5000", # Optional: Replace with your actual site URL
-                "X-Title": "Bible Terminal", # Optional: Replace with your app name
+                "HTTP-Referer": "http://localhost:5000",  # Optional: Replace with your actual site URL
+                "X-Title": "Bible Terminal",  # Optional: Replace with your app name
             },
             json={
                 "model": "microsoft/phi-4-reasoning-plus:free",
-                "messages": [
-                    {"role": "user", "content": prompt}
-                ]
-            }
+                "messages": [{"role": "user", "content": prompt}],
+            },
         )
         api_response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
         data = api_response.json()
-        
-        llm_response_content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        
+
+        llm_response_content = (
+            data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        )
+
         if not llm_response_content.strip():
-            app.logger.warn(f"LLM returned empty content for query: {user_query}. Raw response: {data}")
+            app.logger.warn(
+                f"LLM returned empty content for query: {user_query}. Raw response: {data}"
+            )
             llm_response_content = "Sorry, I couldn't retrieve a specific passage for that query. Please try rephrasing."
-            
+
         return jsonify({"response": llm_response_content})
 
     except requests.exceptions.HTTPError as http_err:
         app.logger.error(f"HTTP error occurred: {http_err} - {api_response.text}")
         error_message = "Error communicating with the LLM service."
         try:
-            err_details = api_response.json().get("error", {}).get("message", api_response.text)
+            err_details = (
+                api_response.json().get("error", {}).get("message", api_response.text)
+            )
             error_message = f"LLM service error: {err_details}"
-        except ValueError: # if response is not JSON
-            pass # use default error_message
+        except ValueError:  # if response is not JSON
+            pass  # use default error_message
         return jsonify({"error": error_message}), api_response.status_code
     except requests.exceptions.RequestException as e:
         app.logger.error(f"Request exception occurred: {e}")
         return jsonify({"error": "Failed to connect to the LLM service."}), 503
     except (IndexError, KeyError) as e:
-        app.logger.error(f"Error parsing LLM response: {e}. Raw response: {data if 'data' in locals() else 'N/A'}")
-        return jsonify({"error": "Received an unexpected response format from the LLM service."}), 500
+        app.logger.error(
+            f"Error parsing LLM response: {e}. Raw response: {data if 'data' in locals() else 'N/A'}"
+        )
+        return (
+            jsonify(
+                {
+                    "error": "Received an unexpected response format from the LLM service."
+                }
+            ),
+            500,
+        )
+
 
 if __name__ == "__main__":
     app.run(debug=True)
