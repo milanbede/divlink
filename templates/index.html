@@ -21,46 +21,38 @@
             const outputDiv = document.getElementById('output');
             const terminalDiv = document.getElementById('terminal');
             const customCursor = document.getElementById('customCursor');
-            const textMeasurer = document.getElementById('textMeasurer'); // Get reference to the new span
-            const promptLine = commandInput.parentElement; // Get reference to the prompt line container
+            const textMeasurer = document.getElementById('textMeasurer');
+            const promptLine = commandInput.parentElement;
 
             let idleTimerId;
-            const idleTimeoutDuration = 60000; // 60 seconds in milliseconds
+            const idleTimeoutDuration = 60000;
             let hasPsalmBeenShown = false;
 
             let scrollIntervalId = null;
-            const scrollStepAmount = 3; // Pixels to scroll per step
-            const scrollIntervalTime = 16; // Milliseconds per interval (approx 60fps)
+            const scrollStepAmount = 3;
+            const scrollIntervalTime = 16;
 
             function ensureScrolling() {
-                // If not already scrolling and scrolling is needed
                 if (!scrollIntervalId && terminalDiv.scrollHeight > terminalDiv.clientHeight &&
                     terminalDiv.scrollTop < (terminalDiv.scrollHeight - terminalDiv.clientHeight)) {
 
                     scrollIntervalId = setInterval(() => {
-                        // Re-calculate targetScrollTop on each tick using current scrollHeight
                         const currentTargetScrollTop = terminalDiv.scrollHeight - terminalDiv.clientHeight;
                         if (terminalDiv.scrollTop < currentTargetScrollTop) {
                             terminalDiv.scrollTop += scrollStepAmount;
-                            // Check if we've reached or passed the new target
                             if (terminalDiv.scrollTop >= currentTargetScrollTop) {
-                                terminalDiv.scrollTop = currentTargetScrollTop; // Snap to exact bottom
+                                terminalDiv.scrollTop = currentTargetScrollTop;
                                 clearInterval(scrollIntervalId);
                                 scrollIntervalId = null;
                             }
                         } else {
-                            // If already at or past the bottom (e.g. content shrunk or scrolled manually, or reached target)
-                            terminalDiv.scrollTop = currentTargetScrollTop; // Ensure it's exactly at bottom
+                            terminalDiv.scrollTop = currentTargetScrollTop;
                             clearInterval(scrollIntervalId);
                             scrollIntervalId = null;
                         }
                     }, scrollIntervalTime);
                 }
             }
-
-            // Canvas related variables are no longer needed
-            // const getTextWidthCanvas = document.createElement("canvas");
-            // const getTextWidthContext = getTextWidthCanvas.getContext("2d");
 
             function updateCursorPosition() {
                 if (document.activeElement !== commandInput) {
@@ -72,7 +64,6 @@
                 const textBeforeCursor = commandInput.value.substring(0, commandInput.selectionStart);
                 const styles = window.getComputedStyle(commandInput);
 
-                // Apply necessary styles from input to the measurer span
                 textMeasurer.style.fontFamily = styles.fontFamily;
                 textMeasurer.style.fontSize = styles.fontSize;
                 textMeasurer.style.fontWeight = styles.fontWeight;
@@ -80,12 +71,8 @@
                 textMeasurer.style.fontVariant = styles.fontVariant;
                 textMeasurer.style.letterSpacing = styles.letterSpacing;
                 textMeasurer.style.wordSpacing = styles.wordSpacing;
-                // textMeasurer.style.paddingLeft = styles.paddingLeft; // Usually not needed if measuring text part only
-                // textMeasurer.style.paddingRight = styles.paddingRight;
 
-                // Set the text content to measure
                 textMeasurer.textContent = textBeforeCursor;
-
                 const textWidth = textMeasurer.offsetWidth;
 
                 customCursor.style.left = `${commandInput.offsetLeft + textWidth}px`;
@@ -109,68 +96,40 @@
                 updateCursorPosition();
                 resetIdleTimer();
             });
-
-            // For keys that move the caret (arrows, home, end, etc.) or modify text.
             commandInput.addEventListener('keydown', (event) => {
-                // Let the Enter key be handled by its own specific listener.
-                // Also, ignore modifier keys if pressed alone, as they don't move the caret.
-                if (event.key === 'Enter' || event.key === 'Shift' || event.key === 'Control' || event.key === 'Alt' || event.key === 'Meta') {
-                    // If it's Enter, it's handled by the other listener.
-                    // If it's just a modifier, the caret hasn't moved yet.
-                    return;
-                }
-                // For other keys (arrows, backspace, delete, characters), update position after default action.
+                if (['Enter','Shift','Control','Alt','Meta'].includes(event.key)) return;
                 setTimeout(updateCursorPosition, 0);
             });
-
             commandInput.addEventListener('keyup', (event) => {
-                // For keys that move the cursor but don't fire 'input' (arrows, Home, End)
-                // and thus wouldn't trigger resetIdleTimer via the 'input' event.
-                const navigationKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'];
-                if (navigationKeys.includes(event.key)) {
-                    resetIdleTimer();
-                }
+                const navKeys = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'];
+                if (navKeys.includes(event.key)) resetIdleTimer();
             });
 
-             // Call once on load in case of autofocus
             if (document.activeElement === commandInput) {
                 updateCursorPosition();
             }
 
             function showRandomPsalm() {
-                if (hasPsalmBeenShown) {
-                    return;
-                }
-                hasPsalmBeenShown = true; // Set flag immediately
-                clearTimeout(idleTimerId); // Clear timer as we are now showing it
-
-                // Add a small visual break or message if desired before fetching
-                // const thinkingElement = document.createElement('div');
-                // thinkingElement.textContent = "[A moment of reflection...]";
-                // outputDiv.appendChild(thinkingElement);
-                // outputDiv.scrollTop = outputDiv.scrollHeight;
-
-                promptLine.style.visibility = 'hidden'; // Hide prompt
+                if (hasPsalmBeenShown) return;
+                hasPsalmBeenShown = true;
+                clearTimeout(idleTimerId);
+                promptLine.style.visibility = 'hidden';
 
                 fetch('/random_psalm')
-                    .then(response => {
-                        if (!response.ok) {
-                            return response.json().then(errData => {
-                                throw new Error(errData.error || `Server error: ${response.status}`);
-                            }).catch(() => {
-                                throw new Error(`Server error: ${response.status}`);
-                            });
+                    .then(r => {
+                        if (!r.ok) {
+                            return r.json().then(errData => { throw new Error(errData.error || `Server error: ${r.status}`); })
+                                       .catch(() => { throw new Error(`Server error: ${r.status}`); });
                         }
-                        return response.json();
+                        return r.json();
                     })
                     .then(data => {
                         const psalmText = data.response || "Could not retrieve a Psalm at this moment.";
-                        // The 'score' from /random_psalm is null, typeResponse handles it gracefully
                         typeResponse(psalmText, outputDiv, data.score, () => {
                             outputDiv.appendChild(document.createElement('br'));
                             promptLine.style.visibility = 'visible';
                             ensureScrolling();
-                            commandInput.focus(); // Keep focus on input for subsequent user interaction
+                            commandInput.focus();
                             updateCursorPosition();
                         });
                     })
@@ -178,7 +137,7 @@
                         console.error('Error fetching random Psalm:', error);
                         const errorElement = document.createElement('div');
                         errorElement.textContent = `Error: Could not load a Psalm. ${error.message}`;
-                        errorElement.style.color = 'red'; // Or some other error indication
+                        errorElement.style.color = 'red';
                         outputDiv.appendChild(errorElement);
                         outputDiv.appendChild(document.createElement('br'));
                         promptLine.style.visibility = 'visible';
@@ -189,69 +148,47 @@
             }
 
             function resetIdleTimer() {
-                if (hasPsalmBeenShown) {
-                    return; // Don't restart timer if Psalm has already been shown.
-                }
-                clearTimeout(idleTimerId); // Always clear any existing timer first.
-
-                // Conditions for the timer to be active:
+                if (hasPsalmBeenShown) return;
+                clearTimeout(idleTimerId);
                 const inputIsEmpty = commandInput.value.trim() === '';
                 const inputIsActive = document.activeElement === commandInput;
-                const UIIsReadyForInput = promptLine.style.visibility !== 'hidden';
-
-                if (inputIsEmpty && inputIsActive && UIIsReadyForInput) {
+                const uiReady = promptLine.style.visibility !== 'hidden';
+                if (inputIsEmpty && inputIsActive && uiReady) {
                     idleTimerId = setTimeout(showRandomPsalm, idleTimeoutDuration);
                 }
-                // If conditions are not met, the timer remains cleared.
             }
 
-            // Start the initial idle timer
             resetIdleTimer();
 
-            // Listener specifically for Enter key
             commandInput.addEventListener('keydown', function(event) {
-                // Note: resetIdleTimer() is NOT called here for all keys.
-                // That is handled by 'input', 'focus', 'blur', 'click', and 'keyup' for navigation keys.
-
                 if (event.key === 'Enter') {
-                    clearTimeout(idleTimerId); // Stop timer: Enter is an explicit user action.
+                    clearTimeout(idleTimerId);
                     event.preventDefault();
                     const command = commandInput.value.trim();
                     if (command) {
-                        // Display command in output
                         const commandElement = document.createElement('div');
-                        commandElement.className = 'echoed-command-line'; // Add class for flex styling
+                        commandElement.className = 'echoed-command-line';
                         commandElement.innerHTML = `<span class="username-echo">seeker</span><span class="prompt-echo">&gt;</span><span class="echoed-command-text">${escapeHtml(command)}</span>`;
                         outputDiv.appendChild(commandElement);
                         ensureScrolling();
-
-                        // Hide the entire prompt line during response typing
                         promptLine.style.visibility = 'hidden';
 
                         fetch('/query', {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ query: command }),
                         })
-                        .then(response => {
-                            if (!response.ok) {
-                                // Try to parse error from backend if available, then throw
-                                return response.json().then(errData => {
-                                    throw new Error(errData.error || `Server error: ${response.status}`);
-                                }).catch(() => {
-                                    // Fallback if error response is not JSON or no 'error' field
-                                    throw new Error(`Server error: ${response.status}`);
-                                });
+                        .then(r => {
+                            if (!r.ok) {
+                                return r.json().then(errData => { throw new Error(errData.error || `Server error: ${r.status}`); })
+                                           .catch(() => { throw new Error(`Server error: ${r.status}`); });
                             }
-                            return response.json();
+                            return r.json();
                         })
                         .then(data => {
                             const responseText = data.response || "Received no specific response.";
-                            const score = data.score; // Get the score from the response
-                            typeResponse(responseText, outputDiv, score, () => { // Pass score to typeResponse
-                                // This callback runs after typing is complete
+                            const score = data.score;
+                            typeResponse(responseText, outputDiv, score, () => {
                                 outputDiv.appendChild(document.createElement('br'));
                                 commandInput.value = '';
                                 promptLine.style.visibility = 'visible';
@@ -263,9 +200,7 @@
                         .catch(error => {
                             console.error('Fetch Error:', error);
                             const errorText = `Error: ${escapeHtml(error.message)}`;
-                            // Errors don't have a score, or we can pass a default like null/0
                             typeResponse(errorText, outputDiv, null, () => {
-                                // This callback runs after typing is complete
                                 outputDiv.appendChild(document.createElement('br'));
                                 commandInput.value = '';
                                 promptLine.style.visibility = 'visible';
@@ -275,93 +210,78 @@
                             });
                         });
                     } else {
-                        // Handle empty command: echo an empty prompt and add a line break
                         const commandElement = document.createElement('div');
-                        commandElement.className = 'echoed-command-line'; // Also style empty command line
-                        commandElement.innerHTML = `<span class="username-echo">seeker</span><span class="prompt-echo">&gt;</span>&nbsp;`; // Echo empty prompt with a non-breaking space
+                        commandElement.className = 'echoed-command-line';
+                        commandElement.innerHTML = `<span class="username-echo">seeker</span><span class="prompt-echo">&gt;</span>&nbsp;`;
                         outputDiv.appendChild(commandElement);
-                        outputDiv.appendChild(document.createElement('br')); // Add a line break
+                        outputDiv.appendChild(document.createElement('br'));
                         ensureScrolling();
-
-                        commandInput.value = ''; // Ensure it's cleared
-                        // outputDiv.scrollTop = outputDiv.scrollHeight; // Replaced by ensureScrolling
-                        commandInput.focus(); // Keep focus on input
-                        updateCursorPosition(); // Explicitly update cursor after clearing and focusing
+                        commandInput.value = '';
+                        commandInput.focus();
+                        updateCursorPosition();
                     }
                 }
             });
 
-            function typeResponse(text, container, score, callback) { // Added score parameter
+            function typeResponse(text, container, score, callback) {
                 const baseResponseElement = document.createElement('div');
-                baseResponseElement.className = 'llm-response-text'; // Default class
-
+                baseResponseElement.className = 'llm-response-text';
                 if (score === 20) {
-                    baseResponseElement.classList.add('perfect-score-text'); // Add class for perfect score
+                    baseResponseElement.classList.add('perfect-score-text');
                 }
                 container.appendChild(baseResponseElement);
 
-                let currentTargetElement = baseResponseElement; // Element to append to
+                let currentTargetElement = baseResponseElement;
                 let i = 0;
-                const typingSpeed = 30; // Milliseconds per character (adjust for desired speed)
+                const typingSpeed = 30;
 
                 function typeChar() {
                     if (i < text.length) {
-                        let charToAdd = text.charAt(i);
                         let consumedLength = 1;
+                        const c = text.charAt(i);
+                        const openDivine = '<span class="divine-name">';
+                        const closeDivine = '</span>';
+                        const openEm = '<em>';
+                        const closeEm = '</em>';
 
-                        const divineSpanOpenStr = '<span class="divine-name">';
-                        const divineSpanCloseStr = '</span>';
-                        const emOpenStr = '<em>';
-                        const emCloseStr = '</em>';
-
-                        if (charToAdd === '<' && text.substring(i).startsWith(divineSpanOpenStr)) {
+                        if (c === '<' && text.substring(i).startsWith(openDivine)) {
                             const newSpan = document.createElement('span');
                             newSpan.className = 'divine-name';
                             currentTargetElement.appendChild(newSpan);
-                            currentTargetElement = newSpan; // Future text goes into this span
-                            consumedLength = divineSpanOpenStr.length;
-                        } else if (charToAdd === '<' && text.substring(i).startsWith(divineSpanCloseStr)) {
+                            currentTargetElement = newSpan;
+                            consumedLength = openDivine.length;
+                        } else if (c === '<' && text.substring(i).startsWith(closeDivine)) {
                             if (currentTargetElement.parentElement && currentTargetElement.className === 'divine-name') {
-                                currentTargetElement = currentTargetElement.parentElement; // Revert to parent
+                                currentTargetElement = currentTargetElement.parentElement;
                             } else {
-                                // Fallback or error: trying to close a span we're not in.
-                                baseResponseElement.innerHTML += divineSpanCloseStr;
+                                baseResponseElement.innerHTML += closeDivine;
                             }
-                            consumedLength = divineSpanCloseStr.length;
-                        } else if (charToAdd === '<' && text.substring(i).startsWith(emOpenStr)) {
+                            consumedLength = closeDivine.length;
+                        } else if (c === '<' && text.substring(i).startsWith(openEm)) {
                             const newEm = document.createElement('em');
                             currentTargetElement.appendChild(newEm);
-                            currentTargetElement = newEm; // Future text goes into this em
-                            consumedLength = emOpenStr.length;
-                        } else if (charToAdd === '<' && text.substring(i).startsWith(emCloseStr)) {
+                            currentTargetElement = newEm;
+                            consumedLength = openEm.length;
+                        } else if (c === '<' && text.substring(i).startsWith(closeEm)) {
                             if (currentTargetElement.parentElement && currentTargetElement.tagName.toLowerCase() === 'em') {
-                                currentTargetElement = currentTargetElement.parentElement; // Revert to parent
+                                currentTargetElement = currentTargetElement.parentElement;
                             } else {
-                                // Fallback or error: trying to close an em we're not in or not at the right nesting.
-                                baseResponseElement.innerHTML += emCloseStr;
+                                baseResponseElement.innerHTML += closeEm;
                             }
-                            consumedLength = emCloseStr.length;
+                            consumedLength = closeEm.length;
                         } else {
-                            // It's a regular character. Append as a text node.
-                            // If charToAdd is '<' or '&' (and not part of a recognized tag),
-                            // createTextNode will display them literally, which is correct.
-                            currentTargetElement.appendChild(document.createTextNode(charToAdd));
-                            // consumedLength remains 1, set by default
+                            currentTargetElement.appendChild(document.createTextNode(c));
                         }
 
                         i += consumedLength;
-                        // Directly scroll to the bottom after each character.
-                        // This ensures scrolling happens during typing, though it won't be the previous custom animation.
                         terminalDiv.scrollTop = terminalDiv.scrollHeight;
                         setTimeout(typeChar, typingSpeed);
                     } else {
-                        // Typing finished
-                        if (callback) {
-                            callback(); // The callback may also call ensureScrolling for a final adjustment.
-                        }
+                        if (callback) callback();
                     }
                 }
-                typeChar(); // Start typing
+                typeResponse; // avoid lint error
+                typeChar();
             }
 
             function escapeHtml(unsafe) {
@@ -373,36 +293,27 @@
                      .replace(/'/g, "&#039;");
             }
 
-            // Focus on input when clicking anywhere in the terminal
             document.getElementById('terminal').addEventListener('click', (event) => {
-                // If the click is on the input field itself, don't prevent default.
-                // Otherwise, focus the input. This helps if user clicks on output area.
                 if (event.target !== commandInput) {
                     commandInput.focus();
                 }
             });
-
-            // Also reset idle timer if user clicks in terminal (might not type but shows activity)
             document.getElementById('terminal').addEventListener('click', resetIdleTimer);
 
-            // Hide the blinking cursor while the user is selecting text,
-            // and restore it once the selection is cleared.
+            // Pause blinking & hide the custom cursor whenever any text selection is active,
+            // and resume blinking once the selection clears.
             document.addEventListener('selectionchange', () => {
                 const selection = window.getSelection();
-                if (document.activeElement === commandInput) {
-                    if (!selection.isCollapsed) {
-                        customCursor.style.visibility = 'hidden';
-                    } else {
-                        updateCursorPosition();
-                    }
+                if (!selection.isCollapsed) {
+                    customCursor.style.visibility = 'hidden';
+                    customCursor.style.animationPlayState = 'paused';
+                } else {
+                    customCursor.style.animationPlayState = 'running';
+                    updateCursorPosition();
                 }
             });
-
-            // Scanlines are now fixed and do not need JavaScript-based position updates.
-            // The #terminal::after pseudo-element will have a static background position.
-
         });
     </script>
-    <span id="textMeasurer"></span> <!-- Add the measurer span here -->
+    <span id="textMeasurer"></span>
 </body>
 </html>
