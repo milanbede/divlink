@@ -70,3 +70,8 @@ See `requirements.txt` for specific versions.
 - [ ] Improve model selection (e.g., allow user choice or dynamic selection based on query).
 - [ ] Add caching for LLM responses and/or Bible passages to reduce API calls and improve speed.
 - [ ] Implement username Easter Eggs for a bit of fun.
+
+## License
+
+The source code of this project is licensed under the terms described in `LICENSE.txt`.  
+The King James Version (KJV) Bible texts included in the `data/books` directory are in the public domain and are not subject to the terms of this license.
