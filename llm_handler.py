@@ -205,7 +205,9 @@ Begin."""
                 raw_llm_output = (
                     completion.choices[0].message.content if completion.choices else ""
                 )
-                prompt_tokens = completion.usage.prompt_tokens if completion.usage else 0
+                prompt_tokens = (
+                    completion.usage.prompt_tokens if completion.usage else 0
+                )
                 completion_tokens = (
                     completion.usage.completion_tokens if completion.usage else 0
                 )
