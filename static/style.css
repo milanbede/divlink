@@ -69,8 +69,10 @@ body {
 }
 
 #terminal {
-    padding: 0;
+    /* add horizontal padding so divine-name glow isn’t clipped at the edges */
+    padding: 0 8px;
     height: calc(100vh - 40px);
+    overflow-x: visible;
     overflow-y: auto;
     position: relative;
 }
