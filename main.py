@@ -70,9 +70,7 @@ def random_psalm():
     passage_text = bible_parser.get_random_psalm_passage()
 
     if passage_text is None:
-        app.logger.error(
-            "Failed to retrieve a random Psalm. Serving a fallback verse."
-        )
+        app.logger.error("Failed to retrieve a random Psalm. Serving a fallback verse.")
         fallback_verse = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n- John 3:16"
         return jsonify({"response": fallback_verse, "score": None}), 200
 
