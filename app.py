@@ -395,13 +395,21 @@ Begin."""
 
             try:
                 # Attempt to extract JSON from raw_llm_output, possibly wrapped in markdown
-                json_match = re.search(r"```json\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*?\})", raw_llm_output, re.DOTALL)
-                
+                json_match = re.search(
+                    r"```json\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*?\})",
+                    raw_llm_output,
+                    re.DOTALL,
+                )
+
                 extracted_json_str = None
                 if json_match:
                     # Prioritize the content within ```json ... ``` if present
-                    extracted_json_str = json_match.group(1) if json_match.group(1) else json_match.group(2)
-                
+                    extracted_json_str = (
+                        json_match.group(1)
+                        if json_match.group(1)
+                        else json_match.group(2)
+                    )
+
                 if not extracted_json_str:
                     # If regex didn't find a clear JSON block, or if raw_llm_output itself might be JSON
                     # This case handles if the LLM *only* returned JSON without wrappers.
@@ -409,11 +417,17 @@ Begin."""
                     # We will let json.loads try on raw_llm_output if extracted_json_str is None.
                     # However, if raw_llm_output is clearly not starting with { then it's unlikely to be JSON.
                     # For safety, if regex fails, we'll try raw_llm_output only if it looks like JSON.
-                    if raw_llm_output.strip().startswith("{") and raw_llm_output.strip().endswith("}"):
+                    if raw_llm_output.strip().startswith(
+                        "{"
+                    ) and raw_llm_output.strip().endswith("}"):
                         extracted_json_str = raw_llm_output
                     else:
                         # If regex fails and it doesn't look like JSON, trigger JSONDecodeError path
-                        raise json.JSONDecodeError("No valid JSON block found in LLM output.", raw_llm_output, 0)
+                        raise json.JSONDecodeError(
+                            "No valid JSON block found in LLM output.",
+                            raw_llm_output,
+                            0,
+                        )
 
                 parsed_json = json.loads(extracted_json_str)
                 references_data_list = parsed_json.get("references")
