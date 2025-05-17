@@ -1,10 +1,10 @@
 import os
-import requests
+import requests # Still needed for OpenRouter client, not for seeding
 import json
 import re  # For parsing Bible references
 
 # import xml.etree.ElementTree as ET # No longer needed for NIST
-import random  # For selecting a random reference
+import random  # For selecting a random reference, random.seed is now in RandomSeeder
 from flask import Flask, render_template, request, jsonify, session
 from dotenv import load_dotenv
 from openai import (
@@ -33,101 +33,11 @@ else:
     )
     client = None  # Explicitly set client to None if key is missing
 
-
-def get_drand_seed():
-    """Fetches randomness from drand and returns it as an integer seed."""
-    try:
-        response = requests.get("https://drand.cloudflare.com/public/latest", timeout=5)
-        response.raise_for_status()
-        data = response.json()
-        randomness_hex = data.get("randomness")
-        if randomness_hex:
-            app.logger.info(
-                f"Successfully fetched seed from drand. Round: {data.get('round')}"
-            )
-            return int(randomness_hex, 16)
-        else:
-            app.logger.error("Drand response did not contain 'randomness' field.")
-            return None
-    except requests.exceptions.RequestException as e:
-        app.logger.error(f"Could not fetch seed from drand: {e}.")
-        return None
-    except (ValueError, TypeError, KeyError) as e:
-        app.logger.error(f"Error processing drand response: {e}.")
-        return None
-
-
-def get_nist_seed():
-    """Fetches randomness from NIST beacon and returns it as an integer seed."""
-    try:
-        response = requests.get(
-            "https://beacon.nist.gov/beacon/2.0/pulse/last", timeout=5
-        )
-        response.raise_for_status()
-        data = response.json()  # NIST beacon v2.0 returns JSON
-
-        # Access the outputValue from the nested structure
-        randomness_hex = data.get("pulse", {}).get("outputValue")
-
-        if randomness_hex:
-            app.logger.info("Successfully fetched seed from NIST beacon.")
-            return int(randomness_hex, 16)
-        else:
-            app.logger.error(
-                "NIST beacon JSON response did not contain 'pulse.outputValue' field or it was empty."
-            )
-            return None
-    except requests.exceptions.RequestException as e:
-        app.logger.error(f"Could not fetch seed from NIST beacon: {e}.")
-        return None
-    except (
-        json.JSONDecodeError,
-        ValueError,
-        TypeError,
-        KeyError,
-    ) as e:  # Updated exception handling
-        app.logger.error(f"Error processing NIST beacon JSON response: {e}.")
-        return None
-
-
-def initialize_random_seeding():
-    """Initializes the random number generator using seeds from drand and NIST."""
-    drand_seed = get_drand_seed()
-    nist_seed = get_nist_seed()
-
-    final_seed = None
-
-    if drand_seed is not None and nist_seed is not None:
-        # Combine seeds if both are available (e.g., XOR)
-        # Ensure they are integers for XOR
-        final_seed = drand_seed ^ nist_seed
-        app.logger.info("Combined seeds from drand and NIST.")
-    elif drand_seed is not None:
-        final_seed = drand_seed
-        app.logger.info("Using seed from drand only.")
-    elif nist_seed is not None:
-        final_seed = nist_seed
-        app.logger.info("Using seed from NIST only.")
-    else:
-        app.logger.error(
-            "Failed to fetch seed from both drand and NIST. Using default random seed."
-        )
-
-    if final_seed is not None:
-        random.seed(final_seed)
-        app.logger.info(
-            "Random number generator seeded with value derived from external beacons."
-        )
-    else:
-        # Python's random module is seeded by default if random.seed() is not called.
-        # This path means we explicitly acknowledge we are using that default.
-        app.logger.info(
-            "Random number generator using default (time-based or OS-specific) seed."
-        )
-
+from random_seeder import RandomSeeder
 
 # Initialize the random number generator at application startup
-initialize_random_seeding()
+seeder = RandomSeeder(app.logger)
+seeder.initialize_seeding()
 
 # Load Bible data and create a lookup map
 BIBLE_DATA = []
