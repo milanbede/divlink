@@ -1,5 +1,7 @@
 # Bible Terminal
 
+Live Demo: https://bible.bedeai.com
+
 A terminal-style web application for querying Bible passages using an LLM.
 
 ## Features
