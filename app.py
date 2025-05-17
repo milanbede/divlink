@@ -196,7 +196,12 @@ def query_llm():
 
     base_prompt_text = """You are a Bible reference guide trained to help people find direct, relevant verses from the Bible that speak to their questions, challenges, or sins. You do not paraphrase, interpret, or soften God’s Word.
 
-Your role is to return a JSON object containing a list of specific Bible references. The JSON object should have a single key "references", and its value should be a list of strings, where each string is a Bible reference (e.g., "Proverbs 3:5-6" or "Matthew 10:34"). Provide up to 3 relevant references. Do not include any commentary or other text outside the JSON object.
+Your role is to return a JSON object. This object must contain a single key "references". The value of "references" should be a list of objects. Each object in the list must represent a single Bible reference and contain three keys:
+1.  "reference": A string with the Bible reference (e.g., "Proverbs 3:5-6" or "Matthew 10:34").
+2.  "relevance_score": A numerical score from 1 (low) to 10 (high) indicating how relevant this specific verse is to the user's query.
+3.  "helpfulness_score": A numerical score from 1 (low) to 10 (high) indicating how helpful this specific verse would be in addressing the spiritual root of the query, according to the principles outlined below.
+
+Provide up to 3 such reference objects. Do not include any commentary or other text outside the JSON object.
 
 Assume the person is seeking real truth, not feel-good platitudes. Prioritize verses that reflect:
 	•	The fear of the Lord
@@ -210,11 +215,23 @@ Example:
 
 Input: "I feel like giving up."
 Output:
-{"references": ["Galatians 6:9", "Isaiah 40:31", "2 Corinthians 4:16-18"]}
+{
+  "references": [
+    {"reference": "Galatians 6:9", "relevance_score": 9, "helpfulness_score": 8},
+    {"reference": "Isaiah 40:31", "relevance_score": 8, "helpfulness_score": 9},
+    {"reference": "2 Corinthians 4:16-18", "relevance_score": 7, "helpfulness_score": 7}
+  ]
+}
 
 Input: "Is homosexuality really a sin?"
 Output:
-{"references": ["Romans 1:26-27", "1 Corinthians 6:9-10", "Leviticus 18:22"]}
+{
+  "references": [
+    {"reference": "Romans 1:26-27", "relevance_score": 10, "helpfulness_score": 9},
+    {"reference": "1 Corinthians 6:9-10", "relevance_score": 9, "helpfulness_score": 10},
+    {"reference": "Leviticus 18:22", "relevance_score": 8, "helpfulness_score": 8}
+  ]
+}
 
 Begin."""
 
@@ -282,56 +299,74 @@ Begin."""
             try:
                 # Attempt to parse the LLM output as JSON
                 parsed_json = json.loads(raw_llm_output)
-                references_list = parsed_json.get("references")
+                references_data_list = parsed_json.get("references")
 
-                if (
-                    not references_list
-                    or not isinstance(references_list, list)
-                    or not all(isinstance(ref, str) for ref in references_list)
-                ):
+                if not isinstance(references_data_list, list):
                     app.logger.warn(
-                        f"LLM response JSON did not contain a valid 'references' list of strings on attempt {attempt + 1}. Query: '{user_query}'. Raw output: '{raw_llm_output}'"
+                        f"LLM response JSON 'references' is not a list on attempt {attempt + 1}. Query: '{user_query}'. Raw output: '{raw_llm_output}'"
+                    )
+                    if attempt < max_retries - 1:
+                        continue # Retry
+                    else:
+                        # Save problematic response and return error
+                        session["conversation_history"] = current_history
+                        session["conversation_history"].append({"role": "assistant", "content": raw_llm_output})
+                        session.modified = True
+                        return jsonify({"response": "LLM did not return the expected list format. Please try again."})
+
+                valid_references_for_selection = []
+                weights = []
+
+                for item in references_data_list:
+                    if not isinstance(item, dict):
+                        app.logger.warn(f"Item in 'references' list is not a dictionary: {item}. Skipping.")
+                        continue
+                    
+                    ref_str = item.get("reference")
+                    rel_score = item.get("relevance_score")
+                    help_score = item.get("helpfulness_score")
+
+                    if not isinstance(ref_str, str) or not ref_str.strip():
+                        app.logger.warn(f"Invalid or missing 'reference' string in item: {item}. Skipping.")
+                        continue
+                    
+                    # Ensure scores are numbers, default to 0 if not or if invalid type
+                    try:
+                        rel_score_num = float(rel_score if isinstance(rel_score, (int, float)) else 0)
+                        help_score_num = float(help_score if isinstance(help_score, (int, float)) else 0)
+                    except (ValueError, TypeError):
+                        app.logger.warn(f"Invalid score types in item: {item}. Defaulting scores to 0 for this item.")
+                        rel_score_num = 0
+                        help_score_num = 0
+                    
+                    # Scores should be positive for weighting, ensure at least a minimal weight if scores are 0 or negative
+                    combined_score = rel_score_num + help_score_num
+                    # Ensure weight is at least 1 to be included in random.choices if all scores are 0
+                    weight = max(1, combined_score) 
+                                        
+                    valid_references_for_selection.append(ref_str)
+                    weights.append(weight)
+
+                if not valid_references_for_selection:
+                    app.logger.warn(
+                        f"No valid references with scores found after parsing LLM output on attempt {attempt + 1}. Query: '{user_query}'. Raw output: '{raw_llm_output}'"
                     )
                     if attempt < max_retries - 1:
                         continue  # Retry
                     else:
-                        session["conversation_history"] = (
-                            current_history  # Save user query
-                        )
-                        session["conversation_history"].append(
-                            {"role": "assistant", "content": raw_llm_output}
-                        )  # Save problematic assistant response
+                        session["conversation_history"] = current_history
+                        session["conversation_history"].append({"role": "assistant", "content": raw_llm_output})
                         session.modified = True
                         return jsonify(
                             {
-                                "response": "Could not extract a valid list of passage references from LLM after multiple attempts. Please try again."
+                                "response": "LLM did not provide any usable Bible references after multiple attempts. Please try rephrasing."
                             }
                         )
-
-                if not references_list:  # Empty list of references
-                    app.logger.warn(
-                        f"LLM returned an empty list of references on attempt {attempt + 1}. Query: '{user_query}'. Raw output: '{raw_llm_output}'"
-                    )
-                    if attempt < max_retries - 1:
-                        continue  # Retry
-                    else:
-                        session["conversation_history"] = (
-                            current_history  # Save user query
-                        )
-                        session["conversation_history"].append(
-                            {"role": "assistant", "content": raw_llm_output}
-                        )  # Save empty list response
-                        session.modified = True
-                        return jsonify(
-                            {
-                                "response": "LLM did not provide any Bible references for your query after multiple attempts. Please try rephrasing."
-                            }
-                        )
-
-                # Randomly select one reference from the list
-                passage_reference = random.choice(references_list)
+                
+                # Weighted random selection
+                passage_reference = random.choices(valid_references_for_selection, weights=weights, k=1)[0]
                 app.logger.info(
-                    f"Randomly selected reference: '{passage_reference}' from LLM output: {references_list} for query: '{user_query}'"
+                    f"Weighted randomly selected reference: '{passage_reference}' from LLM output for query: '{user_query}'. Weights: {weights}, Options: {valid_references_for_selection}"
                 )
 
                 # Successfully got a passage_reference, now parse it and get text
