@@ -272,9 +272,7 @@ Begin."""
                         f"LLM output was not a list after retries. Query: '{user_query}', LLM Raw: '{raw_llm_output}'"
                     )
                     # Fallback logic is handled by the caller (main.py)
-                    return {
-                        "error": "LLM output was not a list after retries."
-                    }, 500
+                    return {"error": "LLM output was not a list after retries."}, 500
 
                 valid_refs, weights = self._parse_llm_references_data(
                     references_data_list
@@ -290,7 +288,9 @@ Begin."""
                     self._update_conversation_history(
                         session, current_history, user_query, raw_llm_output
                     )
-                    return {"error": "No valid references found in LLM output after retries."}, 500
+                    return {
+                        "error": "No valid references found in LLM output after retries."
+                    }, 500
 
                 selected_index = random.choices(
                     range(len(valid_refs)), weights=weights, k=1
@@ -321,7 +321,7 @@ Begin."""
 
                 passage_text = self.bible_parser.get_passage(parsed_bible_ref)
 
-                if passage_text is None: # BibleParser returns None on error
+                if passage_text is None:  # BibleParser returns None on error
                     self.logger.error(
                         f"Bible lookup failed for LLM reference: '{passage_reference}'. Query: '{user_query}', LLM Raw: '{raw_llm_output}'"
                     )
