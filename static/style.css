@@ -88,7 +88,7 @@ body {
         transparent 1px,
         transparent 3px
     );
-    background-position-y: var(--scanline-offset, 0px); /* Default to 0px if var not set */
+    /* background-position-y is removed to keep scanlines static relative to #terminal */
     pointer-events: none; /* So it doesn't interfere with clicks */
     z-index: 1; /* Behind content */
 }

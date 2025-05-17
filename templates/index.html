@@ -385,16 +385,8 @@
             // Also reset idle timer if user clicks in terminal (might not type but shows activity)
             document.getElementById('terminal').addEventListener('click', resetIdleTimer);
 
-            // Update scanline position on scroll
-            const terminalDiv = document.getElementById('terminal'); // Ensure terminalDiv is defined in this scope
-            outputDiv.addEventListener('scroll', () => {
-                const scrollTop = outputDiv.scrollTop;
-                // The scanline pattern is 1px line + 2px transparent = 3px total height.
-                // Use modulo to keep the offset small (0, 1, or 2px) to prevent issues with
-                // very large scrollTop values, while maintaining the visual effect.
-                const effectiveOffset = scrollTop % 3;
-                terminalDiv.style.setProperty('--scanline-offset', `${effectiveOffset}px`);
-            });
+            // Scanlines are now fixed and do not need JavaScript-based position updates.
+            // The #terminal::after pseudo-element will have a static background position.
 
         });
     </script>
