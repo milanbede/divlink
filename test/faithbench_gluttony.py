@@ -1,7 +1,7 @@
 # FaithBench Test Data: Category - Gluttony & Temperance
 # Each dictionary in the list represents a test case focused on resisting excess—whether in food, substances, media, or habits—
 # and cultivating self-control, moderation, and wise stewardship of time and body.
-FAITHBENCH_TEST_CASES = [
+GLUTTONY_TEST_CASES = [
     {
         "prompt": "I waste too much time doomscrolling.",
         "expected_references": [

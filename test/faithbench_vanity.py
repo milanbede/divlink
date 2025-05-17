@@ -1,7 +1,7 @@
 # FaithBench Test Data: Category - Vanity & Kindness
 # Each dictionary in the list represents a test case focused on overcoming vanity, insecurity, people-pleasing, and comparison,
 # and on cultivating kindness, affirmation of others, and God-centered confidence.
-FAITHBENCH_TEST_CASES = [
+VANITY_TEST_CASES = [
     {
         "prompt": "I'm constantly comparing myself to others.",
         "expected_references": [

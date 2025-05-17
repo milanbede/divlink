@@ -1,7 +1,7 @@
 # FaithBench Test Data: Category - Greed & Generosity
 # Each dictionary in the list represents a test case focused on overcoming greed, envy, and discontentment,
 # and on developing generosity, contentment, and trust in God's provision.
-FAITHBENCH_TEST_CASES = [
+GREED_TEST_CASES = [
     {
         "prompt": "I'm jealous of my friends' success.",
         "expected_references": [

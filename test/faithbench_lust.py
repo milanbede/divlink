@@ -1,7 +1,7 @@
 # FaithBench Test Data: Category - Lust & Chastity
 # Each dictionary in the list represents a test case focused on resisting lust, pornography, and sexual sin,
 # and on cultivating chastity, purity, and self-control.
-FAITHBENCH_TEST_CASES = [
+LUST_TEST_CASES = [
     {
         "prompt": "I'm addicted to porn and I hate myself for it.",
         "expected_references": [

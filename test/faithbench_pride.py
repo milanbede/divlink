@@ -1,7 +1,7 @@
 # FaithBench Test Data: Category - Pride & Humility
 # Each dictionary in the list represents a test case focused on overcoming pride, arrogance, and self-reliance,
 # and on cultivating humility, honesty, vulnerability, and a servant heart.
-FAITHBENCH_TEST_CASES = [
+PRIDE_TEST_CASES = [
     {
         "prompt": "I'm struggling with pride.",
         "expected_references": [
