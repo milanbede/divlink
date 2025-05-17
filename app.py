@@ -28,7 +28,7 @@ def query_llm():
     prompt = (
         f"For the query: '{user_query}', identify the single most relevant Bible passage. "
         "Respond ONLY with a JSON object containing a single key 'reference', "
-        "where the value is the passage reference as a string (e.g., {\"reference\": \"John 3:16\"} or {\"reference\": \"Genesis 1:1-5\"}). "
+        'where the value is the passage reference as a string (e.g., {"reference": "John 3:16"} or {"reference": "Genesis 1:1-5"}). '
         "Do not include any other text, explanations, or apologies."
     )
 
@@ -57,11 +57,14 @@ def query_llm():
             app.logger.warn(
                 f"LLM returned empty content for query: {user_query}. Raw response: {data}"
             )
-            return jsonify({"response": "LLM returned an empty response. Please try rephrasing."})
+            return jsonify(
+                {"response": "LLM returned an empty response. Please try rephrasing."}
+            )
 
         try:
             # Attempt to parse the LLM output as JSON
             import json
+
             parsed_json = json.loads(raw_llm_output)
             passage_reference = parsed_json.get("reference")
 
@@ -69,8 +72,12 @@ def query_llm():
                 app.logger.warn(
                     f"LLM response JSON did not contain a valid 'reference' string. Query: {user_query}. Raw output: {raw_llm_output}"
                 )
-                return jsonify({"response": "Could not extract a valid passage reference from LLM. Please try again."})
-            
+                return jsonify(
+                    {
+                        "response": "Could not extract a valid passage reference from LLM. Please try again."
+                    }
+                )
+
             return jsonify({"response": passage_reference})
 
         except json.JSONDecodeError:
@@ -82,8 +89,11 @@ def query_llm():
             # A stricter approach would be to return an error here.
             # For now, let's assume if it's not JSON, it might be a direct answer or an error message from the LLM.
             # However, the prompt strongly requests JSON. If it's not JSON, it's likely an issue.
-            return jsonify({"response": "LLM did not return the expected JSON format. Please try again."})
-
+            return jsonify(
+                {
+                    "response": "LLM did not return the expected JSON format. Please try again."
+                }
+            )
 
     except requests.exceptions.HTTPError as http_err:
         app.logger.error(f"HTTP error occurred: {http_err} - {api_response.text}")
