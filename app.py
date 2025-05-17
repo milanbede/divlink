@@ -1,5 +1,6 @@
 import os
 import requests
+import json # Moved from inside the function
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 
@@ -32,96 +33,113 @@ def query_llm():
         "Do not include any other text, explanations, or apologies."
     )
 
-    try:
-        api_response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "http://localhost:5000",  # Optional: Replace with your actual site URL
-                "X-Title": "Bible Terminal",  # Optional: Replace with your app name
-            },
-            json={
-                "model": "qwen/qwen3-0.6b-04-28:free",
-                "messages": [{"role": "user", "content": prompt}],
-            },
-        )
-        api_response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
-        data = api_response.json()
-
-        raw_llm_output = (
-            data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        )
-
-        if not raw_llm_output.strip():
-            app.logger.warn(
-                f"LLM returned empty content for query: {user_query}. Raw response: {data}"
-            )
-            return jsonify(
-                {"response": "LLM returned an empty response. Please try rephrasing."}
-            )
-
+    max_retries = 3
+    for attempt in range(max_retries):
         try:
-            # Attempt to parse the LLM output as JSON
-            import json
+            app.logger.info(f"Attempt {attempt + 1} for query: {user_query}")
+            api_response = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "http://localhost:5000",  # Optional: Replace with your actual site URL
+                    "X-Title": "Bible Terminal",  # Optional: Replace with your app name
+                },
+                json={
+                    "model": "qwen/qwen3-0.6b-04-28:free",
+                    "messages": [{"role": "user", "content": prompt}],
+                },
+            )
+            api_response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
+            data = api_response.json()
 
-            parsed_json = json.loads(raw_llm_output)
-            passage_reference = parsed_json.get("reference")
+            raw_llm_output = (
+                data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            )
 
-            if not passage_reference or not isinstance(passage_reference, str):
+            if not raw_llm_output.strip():
                 app.logger.warn(
-                    f"LLM response JSON did not contain a valid 'reference' string. Query: {user_query}. Raw output: {raw_llm_output}"
+                    f"LLM returned empty content on attempt {attempt + 1} for query: {user_query}. Raw response: {data}"
                 )
-                return jsonify(
+                if attempt < max_retries - 1:
+                    continue # Retry
+                else:
+                    return jsonify(
+                        {"response": "LLM returned an empty response after multiple attempts. Please try rephrasing."}
+                    )
+
+            try:
+                # Attempt to parse the LLM output as JSON
+                parsed_json = json.loads(raw_llm_output)
+                passage_reference = parsed_json.get("reference")
+
+                if not passage_reference or not isinstance(passage_reference, str):
+                    app.logger.warn(
+                        f"LLM response JSON did not contain a valid 'reference' string on attempt {attempt + 1}. Query: {user_query}. Raw output: {raw_llm_output}"
+                    )
+                    if attempt < max_retries - 1:
+                        continue # Retry
+                    else:
+                        return jsonify(
+                            {
+                                "response": "Could not extract a valid passage reference from LLM after multiple attempts. Please try again."
+                            }
+                        )
+                
+                return jsonify({"response": passage_reference}) # Success
+
+            except json.JSONDecodeError:
+                app.logger.warn(
+                    f"LLM response was not valid JSON on attempt {attempt + 1}. Query: {user_query}. Raw output: {raw_llm_output}"
+                )
+                if attempt < max_retries - 1:
+                    continue # Retry
+                else:
+                    return jsonify(
+                        {
+                            "response": "LLM did not return the expected JSON format after multiple attempts. Please try again."
+                        }
+                    )
+
+        except requests.exceptions.HTTPError as http_err:
+            # For HTTP errors, we typically don't retry unless it's a specific transient error.
+            # For simplicity here, we'll log and return error as before, not retrying on HTTP errors.
+            app.logger.error(f"HTTP error occurred: {http_err} - {api_response.text}")
+            error_message = "Error communicating with the LLM service."
+            try:
+                err_details = (
+                    api_response.json().get("error", {}).get("message", api_response.text)
+                )
+                error_message = f"LLM service error: {err_details}"
+            except ValueError:  # if response is not JSON
+                pass
+            return jsonify({"error": error_message}), api_response.status_code
+        except requests.exceptions.RequestException as e:
+            # Network-level errors, usually not retried here without more sophisticated backoff.
+            app.logger.error(f"Request exception occurred: {e}")
+            return jsonify({"error": "Failed to connect to the LLM service."}), 503
+        except (IndexError, KeyError) as e:
+            # This error means the structure of the API response itself is unexpected (e.g. no 'choices')
+            # This is less about LLM content and more about API contract.
+            app.logger.error(
+                f"Error parsing LLM API structure: {e}. Raw response: {data if 'data' in locals() else 'N/A'}"
+            )
+            # Not retrying this type of error as it's unlikely to be fixed by a simple retry.
+            return (
+                jsonify(
                     {
-                        "response": "Could not extract a valid passage reference from LLM. Please try again."
+                        "error": "Received an unexpected response structure from the LLM service."
                     }
-                )
-
-            return jsonify({"response": passage_reference})
-
-        except json.JSONDecodeError:
-            app.logger.warn(
-                f"LLM response was not valid JSON. Query: {user_query}. Raw output: {raw_llm_output}"
+                ),
+                500,
             )
-            # Fallback: if it's not JSON, maybe it's just the reference directly (less likely with the new prompt)
-            # Or, it could be a refusal or other text. For now, we'll return it as is if it's not JSON.
-            # A stricter approach would be to return an error here.
-            # For now, let's assume if it's not JSON, it might be a direct answer or an error message from the LLM.
-            # However, the prompt strongly requests JSON. If it's not JSON, it's likely an issue.
-            return jsonify(
-                {
-                    "response": "LLM did not return the expected JSON format. Please try again."
-                }
-            )
-
-    except requests.exceptions.HTTPError as http_err:
-        app.logger.error(f"HTTP error occurred: {http_err} - {api_response.text}")
-        error_message = "Error communicating with the LLM service."
-        try:
-            err_details = (
-                api_response.json().get("error", {}).get("message", api_response.text)
-            )
-            error_message = f"LLM service error: {err_details}"
-        except ValueError:  # if response is not JSON
-            pass  # use default error_message
-        return jsonify({"error": error_message}), api_response.status_code
-    except requests.exceptions.RequestException as e:
-        app.logger.error(f"Request exception occurred: {e}")
-        return jsonify({"error": "Failed to connect to the LLM service."}), 503
-    except (IndexError, KeyError) as e:
-        app.logger.error(
-            f"Error parsing LLM response: {e}. Raw response: {data if 'data' in locals() else 'N/A'}"
-        )
-        return (
-            jsonify(
-                {
-                    "error": "Received an unexpected response format from the LLM service."
-                }
-            ),
-            500,
-        )
-
+    
+    # This part should ideally not be reached if logic above is correct,
+    # but as a fallback if loop finishes without returning:
+    return jsonify({"error": "Failed to get a valid response from LLM after multiple retries."}), 500
+# The old try block content is now inside the loop in the REPLACE section above.
+# This SEARCH block is to remove the old structure.
+# The outer exception handlers (HTTPError, RequestException, etc.) are now part of the loop structure.
 
 if __name__ == "__main__":
     app.run(debug=True)
