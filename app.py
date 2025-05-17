@@ -1,6 +1,6 @@
 import os  # Still needed for FLASK_SECRET_KEY and os.urandom
-
-# json and re are no longer directly needed at the top level of app.py
+import re
+import json
 import random  # For random.choices in /query, random.seed is now in RandomSeeder
 from flask import Flask, render_template, request, jsonify, session
 from dotenv import load_dotenv
