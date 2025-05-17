@@ -169,9 +169,32 @@
 
                 function typeChar() {
                     if (i < text.length) {
-                        responseElement.textContent += text.charAt(i);
-                        i++;
-                        // Optional: Add a subtle flicker or effect per character here for more CRT feel
+                        let charToAdd = text.charAt(i);
+                        let consumedLength = 1;
+
+                        if (charToAdd === '<') {
+                            const divineSpanOpen = '<span class="divine-name">';
+                            const divineSpanClose = '</span>';
+
+                            if (text.substring(i).startsWith(divineSpanOpen)) {
+                                responseElement.innerHTML += divineSpanOpen;
+                                consumedLength = divineSpanOpen.length;
+                            } else if (text.substring(i).startsWith(divineSpanClose)) {
+                                responseElement.innerHTML += divineSpanClose;
+                                consumedLength = divineSpanClose.length;
+                            } else {
+                                // Not our special tag, so treat '<' as literal text and escape it
+                                responseElement.innerHTML += escapeHtml(charToAdd);
+                            }
+                        } else {
+                            // Normal character, escape it before adding to innerHTML
+                            // However, if the character is part of a multi-character sequence like &amp;,
+                            // escapeHtml should handle it correctly.
+                            // For typing effect, we process one original character at a time.
+                            // If charToAdd is '&', escapeHtml turns it to '&amp;'.
+                            responseElement.innerHTML += escapeHtml(charToAdd);
+                        }
+                        i += consumedLength;
                         setTimeout(typeChar, typingSpeed);
                     } else {
                         // Typing finished

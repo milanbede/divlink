@@ -109,6 +109,13 @@ body {
     white-space: pre-line; /* Respects newline characters from the text content */
 }
 
+.divine-name {
+    /* Stronger glow than default text-shadow */
+    text-shadow: 0 0 7px #88ff88, 0 0 14px #00ff00;
+    /* Optionally, make it slightly bolder or a different shade if desired */
+    /* font-weight: bold; */
+}
+
 .echoed-command-line {
     display: flex;
     align-items: center;

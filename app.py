@@ -246,10 +246,14 @@ def get_passage_from_json(parsed_ref):
     passage_texts = []
     output_reference_display = f"{book_data['name']} {chapter_num}"
 
+    divine_name_pattern = re.compile(r"\b(LORD|Lord)\b")
+
     if start_verse is None:  # Whole chapter
         for i, verse_text in enumerate(chapter_verses_list):
             cleaned_verse_text = re.sub(r"\{.*?\}", "", verse_text).strip()
-            passage_texts.append(f"{i+1} {cleaned_verse_text}")
+            # Wrap divine names
+            cleaned_verse_text_highlighted = divine_name_pattern.sub(r'<span class="divine-name">\1</span>', cleaned_verse_text)
+            passage_texts.append(f"{i+1} {cleaned_verse_text_highlighted}")
     else:
         start_verse_index = start_verse - 1  # Adjust for 0-based list index
         end_verse_index = (
@@ -267,7 +271,9 @@ def get_passage_from_json(parsed_ref):
         for i in range(start_verse_index, end_verse_index + 1):
             verse_text = chapter_verses_list[i]
             cleaned_verse_text = re.sub(r"\{.*?\}", "", verse_text).strip()
-            passage_texts.append(f"{i+1} {cleaned_verse_text}")
+            # Wrap divine names
+            cleaned_verse_text_highlighted = divine_name_pattern.sub(r'<span class="divine-name">\1</span>', cleaned_verse_text)
+            passage_texts.append(f"{i+1} {cleaned_verse_text_highlighted}")
 
         if start_verse == end_verse:
             output_reference_display += f":{start_verse}"
