@@ -233,7 +233,9 @@ Begin."""
                     }, 200  # Return 200 for client to display
 
                 extracted_json_str = self._extract_json_from_llm_output(raw_llm_output)
-                self.logger.debug(f"Attempting to parse JSON: <{extracted_json_str}>") # Log the exact string being parsed
+                self.logger.debug(
+                    f"Attempting to parse JSON: <{extracted_json_str}>"
+                )  # Log the exact string being parsed
                 # json.loads will be called here. If it fails, the main try-except for
                 # JSONDecodeError at the end of the loop will catch it.
                 references_data_list = json.loads(extracted_json_str)
