@@ -1,6 +1,7 @@
 import requests
 import json
-import random # For random.seed()
+import random  # For random.seed()
+
 
 class RandomSeeder:
     def __init__(self, logger):
@@ -9,7 +10,9 @@ class RandomSeeder:
     def _get_drand_seed(self):
         """Fetches randomness from drand and returns it as an integer seed."""
         try:
-            response = requests.get("https://drand.cloudflare.com/public/latest", timeout=5)
+            response = requests.get(
+                "https://drand.cloudflare.com/public/latest", timeout=5
+            )
             response.raise_for_status()
             data = response.json()
             randomness_hex = data.get("randomness")
