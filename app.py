@@ -37,7 +37,7 @@ def query_llm():
                 "X-Title": "Bible Terminal",  # Optional: Replace with your app name
             },
             json={
-                "model": "microsoft/phi-4-reasoning-plus:free",
+                "model": "qwen/qwen3-0.6b-04-28:free",
                 "messages": [{"role": "user", "content": prompt}],
             },
         )
