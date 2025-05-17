@@ -201,7 +201,7 @@ Output:
 
 Begin."""
 
-    prompt = f"{base_prompt_text}\n\nInput: \"{user_query}\"\nOutput:"
+    prompt = f'{base_prompt_text}\n\nInput: "{user_query}"\nOutput:'
 
     max_retries = 3
     for attempt in range(max_retries):
