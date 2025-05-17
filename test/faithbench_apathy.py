@@ -1,5 +1,6 @@
-# FaithBench Test Data: Category - Apathy
-# Each dictionary in the list represents a single test case.
+# FaithBench Test Data: Category - Apathy & Diligence
+# Each dictionary in the list represents a test case focused on overcoming apathy, procrastination, or spiritual indifference,
+# and on cultivating diligence, discipline, zeal, and responsibility.
 FAITHBENCH_TEST_CASES = [
     {
         "prompt": "I feel spiritually dry and distant from God.",
@@ -183,6 +184,62 @@ FAITHBENCH_TEST_CASES = [
             "1 Timothy 4:12",
             "Matthew 5:16",
             "Philippians 2:14-15",
+        ],
+    },
+    {
+        "prompt": "I find myself feeling indifferent about my faith.",
+        "expected_references": [
+            "Revelation 3:15-16",
+            "Romans 12:11",
+            "Hebrews 10:24-25",
+        ],
+    },
+    {
+        "prompt": "How can I overcome spiritual laziness?",
+        "expected_references": [
+            "Proverbs 6:9-11",
+            "Romans 13:11-14",
+            "2 Peter 1:5-8",
+        ],
+    },
+    {
+        "prompt": "I want to develop more zeal for serving God.",
+        "expected_references": [
+            "Romans 12:11",
+            "Titus 2:14",
+            "Colossians 3:23",
+        ],
+    },
+    {
+        "prompt": "I keep putting off things God is calling me to do.",
+        "expected_references": [
+            "James 4:17",
+            "Ephesians 5:15-16",
+            "Proverbs 27:1",
+        ],
+    },
+    {
+        "prompt": "How can I become more intentional in my daily walk with God?",
+        "expected_references": [
+            "Joshua 24:15",
+            "Psalm 90:12",
+            "Colossians 4:5",
+        ],
+    },
+    {
+        "prompt": "I struggle to be consistent in my spiritual disciplines.",
+        "expected_references": [
+            "1 Corinthians 9:27",
+            "Luke 9:23",
+            "Psalm 1:2-3",
+        ],
+    },
+    {
+        "prompt": "How do I cultivate perseverance when I feel like giving up?",
+        "expected_references": [
+            "Galatians 6:9",
+            "Hebrews 12:1-3",
+            "James 1:12",
         ],
     },
 ]
