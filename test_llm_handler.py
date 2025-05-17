@@ -1,5 +1,4 @@
 import unittest
-from unittest.mock import MagicMock  # Kept for potential future tests
 
 # Contents related to TestFaithBenchIntegration have been moved to test/faithbench.py
 # and test/faithbench_cases.py.
