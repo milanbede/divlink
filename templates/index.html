@@ -19,6 +19,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const commandInput = document.getElementById('commandInput');
             const outputDiv = document.getElementById('output');
+            const terminalDiv = document.getElementById('terminal');
             const customCursor = document.getElementById('customCursor');
             const textMeasurer = document.getElementById('textMeasurer'); // Get reference to the new span
             const promptLine = commandInput.parentElement; // Get reference to the prompt line container
@@ -33,23 +34,23 @@
 
             function ensureScrolling() {
                 // If not already scrolling and scrolling is needed
-                if (!scrollIntervalId && outputDiv.scrollHeight > outputDiv.clientHeight &&
-                    outputDiv.scrollTop < (outputDiv.scrollHeight - outputDiv.clientHeight)) {
+                if (!scrollIntervalId && terminalDiv.scrollHeight > terminalDiv.clientHeight &&
+                    terminalDiv.scrollTop < (terminalDiv.scrollHeight - terminalDiv.clientHeight)) {
 
                     scrollIntervalId = setInterval(() => {
                         // Re-calculate targetScrollTop on each tick using current scrollHeight
-                        const currentTargetScrollTop = outputDiv.scrollHeight - outputDiv.clientHeight;
-                        if (outputDiv.scrollTop < currentTargetScrollTop) {
-                            outputDiv.scrollTop += scrollStepAmount;
+                        const currentTargetScrollTop = terminalDiv.scrollHeight - terminalDiv.clientHeight;
+                        if (terminalDiv.scrollTop < currentTargetScrollTop) {
+                            terminalDiv.scrollTop += scrollStepAmount;
                             // Check if we've reached or passed the new target
-                            if (outputDiv.scrollTop >= currentTargetScrollTop) {
-                                outputDiv.scrollTop = currentTargetScrollTop; // Snap to exact bottom
+                            if (terminalDiv.scrollTop >= currentTargetScrollTop) {
+                                terminalDiv.scrollTop = currentTargetScrollTop; // Snap to exact bottom
                                 clearInterval(scrollIntervalId);
                                 scrollIntervalId = null;
                             }
                         } else {
                             // If already at or past the bottom (e.g. content shrunk or scrolled manually, or reached target)
-                            outputDiv.scrollTop = currentTargetScrollTop; // Ensure it's exactly at bottom
+                            terminalDiv.scrollTop = currentTargetScrollTop; // Ensure it's exactly at bottom
                             clearInterval(scrollIntervalId);
                             scrollIntervalId = null;
                         }
@@ -352,7 +353,7 @@
                         i += consumedLength;
                         // Directly scroll to the bottom after each character.
                         // This ensures scrolling happens during typing, though it won't be the previous custom animation.
-                        outputDiv.scrollTop = outputDiv.scrollHeight;
+                        terminalDiv.scrollTop = terminalDiv.scrollHeight;
                         setTimeout(typeChar, typingSpeed);
                     } else {
                         // Typing finished
