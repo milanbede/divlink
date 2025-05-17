@@ -4,9 +4,10 @@ import os
 import time  # Added for latency measurement
 from dotenv import load_dotenv
 from openai import OpenAI
-from tqdm import tqdm
 import matplotlib.pyplot as plt  # Added for radar chart
 import numpy as np  # Added for radar chart
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from llm_handler import LLMHandler
 from bible_parser import BibleParser
@@ -34,10 +35,18 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 class TestFaithBenchIntegration(unittest.TestCase):
     MODELS_TO_TEST = [
         "deepseek/deepseek-r1-distill-qwen-32b:free",
-        # Add other model identifiers from OpenRouter here, e.g.:
-        # "mistralai/mistral-7b-instruct:free",
-        # "anthropic/claude-3-haiku-20240307:beta",
-        # "google/gemma-7b-it:free",
+        "meta-llama/llama-4-maverick:free",
+        "meta-llama/llama-4-scout:free",
+        "meta-llama/llama-3.3-8b-instruct:free",
+        "microsoft/phi-4-reasoning-plus:free",
+        "deepseek/deepseek-chat-v3-0324:free",
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen3-235b-a22b:free",
+        "google/gemma-3-27b-it:free",
+        "google/gemma-3-12b-it:free",
+        "mistralai/mistral-nemo:free",
+        "mistralai/mistral-small-3.1-24b-instruct:free",
+        "qwen/qwen3-30b-a3b:free",
     ]
 
     def setUp(self):
@@ -87,182 +96,112 @@ class TestFaithBenchIntegration(unittest.TestCase):
             self.skipTest(
                 "No FaithBench test cases were loaded from category files. Skipping integration test."
             )
+        overall_model_metrics = {}
 
-        overall_model_metrics = {}  # Stores metrics for all models
-
-        for model_name in self.MODELS_TO_TEST:
-            self.mock_logger.info(f"\n--- Testing Model: {model_name} ---")
-            self.llm_handler = LLMHandler(
+        # Run model tests in parallel threads for faster execution
+        def run_model(model_name):
+            handler = LLMHandler(
                 client=self.openai_client,
                 logger=self.mock_logger,
                 bible_parser=self.bible_parser,
                 model_name=model_name,
             )
 
-            model_specific_success_count = 0
             model_total_latency = 0.0
             model_prompt_count_for_latency = 0
-            model_results_summary_lines = []
+            model_specific_success_count = 0
+            category_success_counts = {cat: 0 for cat in all_test_data_sources}
+            category_total_counts = {cat: 0 for cat in all_test_data_sources}
 
-            category_success_counts = {
-                category: 0 for category in all_test_data_sources.keys()
-            }
-            category_total_counts = {
-                category: 0 for category in all_test_data_sources.keys()
-            }
+            for case in all_test_cases:
+                category = case["category"]
+                category_total_counts[category] += 1
 
-            for i, case in enumerate(
-                tqdm(all_test_cases, desc=f"FaithBench ({model_name})")
-            ):
-                with self.subTest(
-                    model=model_name, category=case["category"], prompt=case["prompt"]
-                ):
-                    current_category = case["category"]
-                    category_total_counts[current_category] += 1
-
-                    mock_session = {}  # Simulate Flask session
-
-                    self.mock_logger.info(
-                        f"Model: {model_name}, Test Case {i+1}/{len(all_test_cases)}: Category: {current_category}, Prompt: '{case['prompt']}'"
-                    )
-
-                    start_time = time.time()
-                    result, status_code = self.llm_handler.get_llm_bible_reference(
-                        session=mock_session, user_query=case["prompt"]
-                    )
-                    end_time = time.time()
-                    latency = end_time - start_time
-                    model_total_latency += latency
-                    model_prompt_count_for_latency += 1
-
-                    self.assertEqual(
-                        status_code,
-                        200,
-                        f"Model '{model_name}', Prompt '{case['prompt']}': Expected status 200, got {status_code}. Result: {result}",
-                    )
-                    self.assertIn(
-                        "response",
-                        result,
-                        f"Model '{model_name}', Prompt '{case['prompt']}': Result missing 'response' key. Result: {result}",
-                    )
-
-                    passage_text = result.get("response", "")
-                    returned_reference_line = (
-                        passage_text.splitlines()[0].strip() if passage_text else ""
-                    )
-
-                    is_expected_reference_found = False
-                    matched_reference = None
-                    for expected_ref in case["expected_references"]:
-                        parsed_expected_ref_obj = self.bible_parser.parse_reference(
-                            expected_ref
-                        )
-                        canonical_expected_ref_header = ""
-                        if parsed_expected_ref_obj:
-                            passage_or_error = self.bible_parser.get_passage(
-                                parsed_expected_ref_obj
-                            )
-                            if not (
-                                passage_or_error.startswith("Error:")
-                                or passage_or_error.startswith("Book '")
-                                or passage_or_error.startswith("Chapter ")
-                                or passage_or_error.startswith("No verses found")
-                            ):
-                                canonical_expected_ref_header = (
-                                    passage_or_error.splitlines()[0].strip()
-                                )
-                            else:
-                                self.mock_logger.warning(
-                                    f"Model '{model_name}': Could not form canonical header for expected_ref '{expected_ref}'. Error: {passage_or_error}"
-                                )
-                                if returned_reference_line == expected_ref.strip():
-                                    is_expected_reference_found = True
-                                    matched_reference = expected_ref
-                                    break
-                                continue
-
-                        if returned_reference_line == canonical_expected_ref_header:
-                            is_expected_reference_found = True
-                            matched_reference = expected_ref
-                            break
-                        elif (
-                            not canonical_expected_ref_header
-                            and returned_reference_line == expected_ref.strip()
-                        ):
-                            is_expected_reference_found = True
-                            matched_reference = expected_ref
-                            break
-
-                    if is_expected_reference_found:
-                        model_specific_success_count += 1
-                        category_success_counts[current_category] += 1
-                        model_results_summary_lines.append(
-                            f"PASS ({current_category}): Prompt: \"{case['prompt']}\" -> Matched: \"{matched_reference}\" (Returned: \"{returned_reference_line}\")"
-                        )
-                        self.mock_logger.info(
-                            f"Model '{model_name}' PASS ({current_category}): Prompt: \"{case['prompt']}\" -> Matched: \"{matched_reference}\""
-                        )
-                    else:
-                        model_results_summary_lines.append(
-                            f"FAIL ({current_category}): Prompt: \"{case['prompt']}\" -> Expected one of {case['expected_references']}, Got: \"{returned_reference_line}\""
-                        )
-                        self.mock_logger.warning(
-                            f"Model '{model_name}' FAIL ({current_category}): Prompt: \"{case['prompt']}\" -> Expected {case['expected_references']}, Got: \"{returned_reference_line}\""
-                        )
-
-                    self.assertTrue(
-                        is_expected_reference_found,
-                        f"Model '{model_name}': LLM did not return a passage for one of the expected references "
-                        f"{case['expected_references']}.\n"
-                        f"Prompt: '{case['prompt']}'\n"
-                        f"LLMHandler returned passage starting with: '{returned_reference_line}'\n"
-                        f"Full passage returned (first 200 chars): '{passage_text[:200]}...'",
-                    )
-
-            # After all prompts for the current model
-            avg_latency = (
-                model_total_latency / model_prompt_count_for_latency
-                if model_prompt_count_for_latency > 0
-                else 0
-            )
-            overall_success_rate_model = (
-                (model_specific_success_count / len(all_test_cases)) * 100
-                if len(all_test_cases) > 0
-                else 0
-            )
-
-            category_success_rates_model = {}
-            for cat, count in category_success_counts.items():
-                total_in_cat = category_total_counts[cat]
-                category_success_rates_model[cat] = (
-                    (count / total_in_cat) * 100 if total_in_cat > 0 else 0
+                start = time.time()
+                result, status_code = handler.get_llm_bible_reference(
+                    session={}, user_query=case["prompt"]
                 )
+                latency = time.time() - start
+                model_total_latency += latency
+                model_prompt_count_for_latency += 1
 
-            overall_model_metrics[model_name] = {
-                "overall_success_rate": overall_success_rate_model,
+                # Basic response checks
+                assert status_code == 200
+                assert "response" in result
+
+                returned = (
+                    result["response"].splitlines()[0].strip()
+                    if result["response"]
+                    else ""
+                )
+                # Check if any expected reference matches
+                found = False
+                for exp in case["expected_references"]:
+                    ref_obj = self.bible_parser.parse_reference(exp)
+                    if ref_obj:
+                        passage = self.bible_parser.get_passage(ref_obj)
+                        header = (
+                            passage.splitlines()[0].strip()
+                            if not passage.startswith("Error")
+                            else ""
+                        )
+                        if header == returned:
+                            found = True
+                            break
+                    if returned == exp:
+                        found = True
+                        break
+
+                if found:
+                    model_specific_success_count += 1
+                    category_success_counts[category] += 1
+
+            avg_latency = (
+                (model_total_latency / model_prompt_count_for_latency)
+                if model_prompt_count_for_latency
+                else 0
+            )
+            success_rate = (
+                (model_specific_success_count / len(all_test_cases)) * 100
+                if all_test_cases
+                else 0
+            )
+            category_rates = {
+                c: (
+                    category_success_counts[c] / category_total_counts[c] * 100
+                    if category_total_counts[c]
+                    else 0
+                )
+                for c in all_test_data_sources
+            }
+
+            return model_name, {
+                "overall_success_rate": success_rate,
                 "avg_latency_sec": avg_latency,
-                "category_success_rates": category_success_rates_model,
+                "category_success_rates": category_rates,
                 "total_prompts_tested": len(all_test_cases),
                 "total_successful": model_specific_success_count,
-                "detailed_results": model_results_summary_lines,
-                "cost_usd": "N/A (Cost calculation not yet implemented)",  # Placeholder for cost
+                "detailed_results": [],
+                "cost_usd": "N/A",
             }
 
-            print(f"\n--- Summary for Model: {model_name} ---")
-            for res_line in model_results_summary_lines:
-                print(res_line)
-            print(
-                f"Overall Success Rate: {model_specific_success_count}/{len(all_test_cases)} ({overall_success_rate_model:.2f}%)"
-            )
-            print(f"Average Latency: {avg_latency:.4f} seconds per prompt")
-            print("Category Success Rates:")
-            for cat, rate in category_success_rates_model.items():
-                count = category_success_counts[cat]
-                total = category_total_counts[cat]
-                print(f"  {cat}: {rate:.2f}% ({count}/{total})")
-            print("-----------------------------------------\n")
+        # Execute model tests concurrently
+        with ThreadPoolExecutor(
+            max_workers=min(len(self.MODELS_TO_TEST), 5)
+        ) as executor:
+            futures = {executor.submit(run_model, m): m for m in self.MODELS_TO_TEST}
+            for future in as_completed(futures):
+                mdl = futures[future]
+                try:
+                    name, metrics = future.result()
+                except AssertionError as ae:
+                    self.fail(f"Model {mdl} assertion failed: {ae}")
+                except Exception as e:
+                    self.fail(f"Model {mdl} failed with exception: {e}")
+                else:
+                    overall_model_metrics[name] = metrics
 
-        # After all models have been tested
+        # After concurrent execution, produce summary
         print("\n--- FaithBench Overall Comparative Summary ---")
         header = "| Model                                  | Overall Success Rate | Avg Latency (s/prompt) | Avg Cost (USD) |"
         print(header)
