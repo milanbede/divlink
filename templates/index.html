@@ -62,12 +62,22 @@
                 customCursor.style.height = `${commandInput.offsetHeight}px`;
             }
 
-            commandInput.addEventListener('focus', updateCursorPosition);
+            commandInput.addEventListener('focus', () => {
+                updateCursorPosition();
+                resetIdleTimer();
+            });
             commandInput.addEventListener('blur', () => {
                 customCursor.style.visibility = 'hidden';
+                resetIdleTimer();
             });
-            commandInput.addEventListener('input', updateCursorPosition);
-            commandInput.addEventListener('click', updateCursorPosition);
+            commandInput.addEventListener('input', () => {
+                updateCursorPosition();
+                resetIdleTimer();
+            });
+            commandInput.addEventListener('click', () => {
+                updateCursorPosition();
+                resetIdleTimer();
+            });
 
             // For keys that move the caret (arrows, home, end, etc.) or modify text.
             // Use a slight delay to ensure caret position is updated before measuring.
@@ -82,6 +92,16 @@
                 // For other keys (arrows, backspace, delete, characters), update position after default action.
                 setTimeout(updateCursorPosition, 0);
             });
+
+            commandInput.addEventListener('keyup', (event) => {
+                // For keys that move the cursor but don't fire 'input' (arrows, Home, End)
+                // and thus wouldn't trigger resetIdleTimer via the 'input' event.
+                const navigationKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'];
+                if (navigationKeys.includes(event.key)) {
+                    resetIdleTimer();
+                }
+            });
+
              // Call once on load in case of autofocus
             if (document.activeElement === commandInput) {
                 updateCursorPosition();
@@ -140,20 +160,31 @@
 
             function resetIdleTimer() {
                 if (hasPsalmBeenShown) {
-                    return; // Don't restart timer if Psalm has already been shown
+                    return; // Don't restart timer if Psalm has already been shown.
                 }
-                clearTimeout(idleTimerId);
-                idleTimerId = setTimeout(showRandomPsalm, idleTimeoutDuration);
+                clearTimeout(idleTimerId); // Always clear any existing timer first.
+
+                // Conditions for the timer to be active:
+                const inputIsEmpty = commandInput.value.trim() === '';
+                const inputIsActive = document.activeElement === commandInput;
+                const UIIsReadyForInput = promptLine.style.visibility !== 'hidden';
+
+                if (inputIsEmpty && inputIsActive && UIIsReadyForInput) {
+                    idleTimerId = setTimeout(showRandomPsalm, idleTimeoutDuration);
+                }
+                // If conditions are not met, the timer remains cleared.
             }
 
             // Start the initial idle timer
             resetIdleTimer();
 
-            // Reset timer on any keydown in the input field
+            // Listener specifically for Enter key
             commandInput.addEventListener('keydown', function(event) {
-                resetIdleTimer(); // Reset idle timer on any key press
+                // Note: resetIdleTimer() is NOT called here for all keys.
+                // That is handled by 'input', 'focus', 'blur', 'click', and 'keyup' for navigation keys.
 
                 if (event.key === 'Enter') {
+                    clearTimeout(idleTimerId); // Stop timer: Enter is an explicit user action.
                     event.preventDefault();
                     const command = commandInput.value.trim();
                     if (command) {
