@@ -5,6 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bible Terminal</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Style selected text for light/dark theme */
+        @media (prefers-color-scheme: light) {
+            ::selection {
+                background-color: rgba(0, 120, 215, 0.3);
+                color: inherit;
+            }
+        }
+        @media (prefers-color-scheme: dark) {
+            ::selection {
+                background-color: rgba(100, 150, 250, 0.3);
+                color: inherit;
+            }
+        }
+    </style>
 </head>
 <body>
     <div id="terminal">
@@ -261,7 +276,6 @@
                                 newAnchor.href = hrefValue;
                                 newAnchor.target = '_blank';
                                 newAnchor.rel = 'noopener noreferrer';
-                                // style like normal text and italic
                                 newAnchor.style.textDecoration = 'none';
                                 newAnchor.style.fontStyle = 'italic';
                                 newAnchor.style.color = 'inherit';
@@ -339,12 +353,11 @@
             });
             document.getElementById('terminal').addEventListener('click', resetIdleTimer);
 
-            // Pause blinking & hide the custom cursor whenever any text selection is active,
+            // Pause blinking but keep the cursor visible whenever text is selected,
             // and resume blinking once the selection clears.
             document.addEventListener('selectionchange', () => {
                 const selection = window.getSelection();
                 if (!selection.isCollapsed) {
-                    customCursor.style.visibility = 'hidden';
                     customCursor.style.animationPlayState = 'paused';
                 } else {
                     customCursor.style.animationPlayState = 'running';
