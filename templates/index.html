@@ -308,6 +308,8 @@
 
                         const divineSpanOpenStr = '<span class="divine-name">';
                         const divineSpanCloseStr = '</span>';
+                        const emOpenStr = '<em>';
+                        const emCloseStr = '</em>';
 
                         if (charToAdd === '<' && text.substring(i).startsWith(divineSpanOpenStr)) {
                             const newSpan = document.createElement('span');
@@ -320,26 +322,28 @@
                                 currentTargetElement = currentTargetElement.parentElement; // Revert to parent
                             } else {
                                 // Fallback or error: trying to close a span we're not in.
-                                // For now, just append the literal string if structure is unexpected.
-                                // This might happen if spans are malformed from backend.
                                 baseResponseElement.innerHTML += divineSpanCloseStr;
                             }
                             consumedLength = divineSpanCloseStr.length;
+                        } else if (charToAdd === '<' && text.substring(i).startsWith(emOpenStr)) {
+                            const newEm = document.createElement('em');
+                            currentTargetElement.appendChild(newEm);
+                            currentTargetElement = newEm; // Future text goes into this em
+                            consumedLength = emOpenStr.length;
+                        } else if (charToAdd === '<' && text.substring(i).startsWith(emCloseStr)) {
+                            if (currentTargetElement.parentElement && currentTargetElement.tagName.toLowerCase() === 'em') {
+                                currentTargetElement = currentTargetElement.parentElement; // Revert to parent
+                            } else {
+                                // Fallback or error: trying to close an em we're not in or not at the right nesting.
+                                baseResponseElement.innerHTML += emCloseStr;
+                            }
+                            consumedLength = emCloseStr.length;
                         } else {
-                            // Append text (escaped) to the current target element
-                            // If charToAdd is '<' or other special char not part of our tags, escape it.
+                            // It's a regular character. Append as a text node.
+                            // If charToAdd is '<' or '&' (and not part of a recognized tag),
+                            // createTextNode will display them literally, which is correct.
                             currentTargetElement.appendChild(document.createTextNode(charToAdd));
-                            // Note: escapeHtml was used with innerHTML. With textContent/createTextNode,
-                            // browser handles escaping by default. If charToAdd is '<', it becomes literal '<'.
-                            // If the original text from backend could have '&', it would become literal '&'.
-                            // This is usually desired. If pre-escaped entities like &amp; are needed,
-                            // then using innerHTML with escapeHtml for text nodes is more direct.
-                            // For simplicity and safety with createTextNode, we'll add raw charToAdd.
-                            // If HTML entities like &nbsp; are in the source text and need rendering,
-                            // this approach would show them literally.
-                            // The previous escapeHtml was fine for single chars.
-                            // Let's stick to a simple model: if it's not our tag, it's text.
-                            // If the text itself contains '<' or '&', createTextNode handles it.
+                            // consumedLength remains 1, set by default
                         }
 
                         i += consumedLength;
