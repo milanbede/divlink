@@ -6,6 +6,7 @@ from openai import OpenAI
 
 from llm_handler import LLMHandler
 from bible_parser import BibleParser
+
 # Import test cases from individual category files
 from .faithbench_anger import ANGER_TEST_CASES
 from .faithbench_apathy import APATHY_TEST_CASES
@@ -46,7 +47,7 @@ class TestFaithBenchIntegration(unittest.TestCase):
             client=self.openai_client,  # Use the real client
             logger=self.mock_logger,
             bible_parser=self.bible_parser,
-            model_name="deepseek/deepseek-r1-distill-qwen-32b:free", # Ensure model_name is passed
+            model_name="deepseek/deepseek-r1-distill-qwen-32b:free",  # Ensure model_name is passed
         )
 
     def test_faithbench_prompts_integration(self):
@@ -64,14 +65,15 @@ class TestFaithBenchIntegration(unittest.TestCase):
 
         ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY = []
         for category, cases_list in all_test_data_sources.items():
-            if cases_list: # Ensure the list is not None or empty
+            if cases_list:  # Ensure the list is not None or empty
                 for case_content in cases_list:
                     case_copy = case_content.copy()
                     case_copy["category"] = category
                     ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY.append(case_copy)
             else:
-                self.mock_logger.warning(f"No test cases found for category: {category}")
-
+                self.mock_logger.warning(
+                    f"No test cases found for category: {category}"
+                )
 
         if not ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY:
             self.skipTest(
