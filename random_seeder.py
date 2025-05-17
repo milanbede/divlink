@@ -1,6 +1,6 @@
 import requests
 import json
-import random  # For random.seed()
+import random
 
 
 class RandomSeeder:
