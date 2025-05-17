@@ -1,6 +1,7 @@
 import re
 import json
 import random
+import time
 from openai import (
     APIError,
     APIConnectionError,
@@ -58,10 +59,11 @@ Begin."""
     MAX_HISTORY_PAIRS = 5  # Number of user/assistant message pairs
     MAX_RETRIES = 3
 
-    def __init__(self, client, logger, bible_parser):
+    def __init__(self, client, logger, bible_parser, model_name):
         self.client = client
         self.logger = logger
         self.bible_parser = bible_parser
+        self.model_name = model_name
 
     def _get_conversation_history(self, session):
         if "conversation_history" not in session:
@@ -192,15 +194,21 @@ Begin."""
 
             try:
                 self.logger.info(
-                    f"LLM API Call Attempt {attempt + 1} for query: '{user_query}'. Messages length: {len(messages_for_api_call)}"
+                    f"LLM API Call Attempt {attempt + 1} for query: '{user_query}'. Model: '{self.model_name}'. Messages length: {len(messages_for_api_call)}"
                 )
+                start_time = time.monotonic()
                 completion = self.client.chat.completions.create(
-                    model="deepseek/deepseek-r1-distill-qwen-32b:free",
+                    model=self.model_name,
                     messages=messages_for_api_call,
                 )
+                end_time = time.monotonic()
+                latency_ms = (end_time - start_time) * 1000
+
                 raw_llm_output = (
                     completion.choices[0].message.content if completion.choices else ""
                 )
+                prompt_tokens = completion.usage.prompt_tokens if completion.usage else 0
+                completion_tokens = completion.usage.completion_tokens if completion.usage else 0
 
                 if not raw_llm_output or not raw_llm_output.strip():
                     self.logger.warn(
@@ -320,7 +328,13 @@ Begin."""
                 self._update_conversation_history(
                     session, current_history, user_query, raw_llm_output
                 )  # Save successful interaction
-                return {"response": passage_text, "score": selected_weight}, 200
+                return {
+                    "response": passage_text,
+                    "score": selected_weight,
+                    "latency_ms": latency_ms,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                }, 200
 
             except json.JSONDecodeError as e:
                 self.logger.warn(
