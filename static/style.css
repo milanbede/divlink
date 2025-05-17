@@ -110,13 +110,10 @@ body {
 }
 
 .divine-name {
-    font-weight: bold !important;
-    color: #FF4500 !important; /* OrangeRed - for very obvious testing */
-    /* Significantly different and stronger glow */
-    text-shadow: 0 0 5px #ffffff, /* Inner white glow */
-                 0 0 10px #ffdddd, /* Light red halo to complement color */
-                 0 0 18px #FF4500, /* Main color glow */
-                 0 0 25px #cc0000;  /* Outer darker red glow */
+    font-weight: bold; /* Make it bolder */
+    /* Stronger glow than default text-shadow */
+    text-shadow: 0 0 7px #88ff88, 0 0 14px #00ff00;
+    /* color: #ccffcc; */ /* Optional: slightly different shade of green */
 }
 
 .echoed-command-line {

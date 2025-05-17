@@ -161,9 +161,11 @@
             });
 
             function typeResponse(text, container, callback) {
-                const responseElement = document.createElement('div');
-                responseElement.className = 'llm-response-text'; // Add class for styling
-                container.appendChild(responseElement);
+                const baseResponseElement = document.createElement('div');
+                baseResponseElement.className = 'llm-response-text'; // Add class for styling
+                container.appendChild(baseResponseElement);
+                
+                let currentTargetElement = baseResponseElement; // Element to append to
                 let i = 0;
                 const typingSpeed = 30; // Milliseconds per character (adjust for desired speed)
 
@@ -172,28 +174,42 @@
                         let charToAdd = text.charAt(i);
                         let consumedLength = 1;
 
-                        if (charToAdd === '<') {
-                            const divineSpanOpen = '<span class="divine-name">';
-                            const divineSpanClose = '</span>';
+                        const divineSpanOpenStr = '<span class="divine-name">';
+                        const divineSpanCloseStr = '</span>';
 
-                            if (text.substring(i).startsWith(divineSpanOpen)) {
-                                responseElement.innerHTML += divineSpanOpen;
-                                consumedLength = divineSpanOpen.length;
-                            } else if (text.substring(i).startsWith(divineSpanClose)) {
-                                responseElement.innerHTML += divineSpanClose;
-                                consumedLength = divineSpanClose.length;
+                        if (charToAdd === '<' && text.substring(i).startsWith(divineSpanOpenStr)) {
+                            const newSpan = document.createElement('span');
+                            newSpan.className = 'divine-name';
+                            currentTargetElement.appendChild(newSpan);
+                            currentTargetElement = newSpan; // Future text goes into this span
+                            consumedLength = divineSpanOpenStr.length;
+                        } else if (charToAdd === '<' && text.substring(i).startsWith(divineSpanCloseStr)) {
+                            if (currentTargetElement.parentElement && currentTargetElement.className === 'divine-name') {
+                                currentTargetElement = currentTargetElement.parentElement; // Revert to parent
                             } else {
-                                // Not our special tag, so treat '<' as literal text and escape it
-                                responseElement.innerHTML += escapeHtml(charToAdd);
+                                // Fallback or error: trying to close a span we're not in.
+                                // For now, just append the literal string if structure is unexpected.
+                                // This might happen if spans are malformed from backend.
+                                baseResponseElement.innerHTML += divineSpanCloseStr;
                             }
+                            consumedLength = divineSpanCloseStr.length;
                         } else {
-                            // Normal character, escape it before adding to innerHTML
-                            // However, if the character is part of a multi-character sequence like &amp;,
-                            // escapeHtml should handle it correctly.
-                            // For typing effect, we process one original character at a time.
-                            // If charToAdd is '&', escapeHtml turns it to '&amp;'.
-                            responseElement.innerHTML += escapeHtml(charToAdd);
+                            // Append text (escaped) to the current target element
+                            // If charToAdd is '<' or other special char not part of our tags, escape it.
+                            currentTargetElement.appendChild(document.createTextNode(charToAdd));
+                            // Note: escapeHtml was used with innerHTML. With textContent/createTextNode,
+                            // browser handles escaping by default. If charToAdd is '<', it becomes literal '<'.
+                            // If the original text from backend could have '&', it would become literal '&'.
+                            // This is usually desired. If pre-escaped entities like &amp; are needed,
+                            // then using innerHTML with escapeHtml for text nodes is more direct.
+                            // For simplicity and safety with createTextNode, we'll add raw charToAdd.
+                            // If HTML entities like &nbsp; are in the source text and need rendering,
+                            // this approach would show them literally.
+                            // The previous escapeHtml was fine for single chars.
+                            // Let's stick to a simple model: if it's not our tag, it's text.
+                            // If the text itself contains '<' or '&', createTextNode handles it.
                         }
+                        
                         i += consumedLength;
                         setTimeout(typeChar, typingSpeed);
                     } else {
