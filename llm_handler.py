@@ -8,6 +8,7 @@ from openai import (
     APITimeoutError,
 )
 
+
 class LLMHandler:
     BASE_PROMPT_TEXT = """You are a Bible reference guide trained to help people find direct, relevant verses from the Bible that speak to people's questions, challenges, or sins. You do not paraphrase, interpret, or soften God’s Word.
 
@@ -67,25 +68,28 @@ Begin."""
             session["conversation_history"] = [
                 {"role": "system", "content": self.BASE_PROMPT_TEXT}
             ]
-        return list(session["conversation_history"]) # Return a copy
+        return list(session["conversation_history"])  # Return a copy
 
-    def _update_conversation_history(self, session, current_history, user_query, assistant_response=None):
+    def _update_conversation_history(
+        self, session, current_history, user_query, assistant_response=None
+    ):
         # This method assumes current_history was already retrieved and potentially modified
         # (e.g. by adding user_query before an API call).
         # It will now add the assistant_response if provided, and then trim.
 
         if assistant_response is not None:
             current_history.append({"role": "assistant", "content": assistant_response})
-        
+
         # Trim history if it's too long
-        if len(current_history) > (self.MAX_HISTORY_PAIRS * 2 + 1):  # +1 for system prompt
+        if len(current_history) > (
+            self.MAX_HISTORY_PAIRS * 2 + 1
+        ):  # +1 for system prompt
             current_history = [current_history[0]] + current_history[
                 -(self.MAX_HISTORY_PAIRS * 2) :
             ]
-        
+
         session["conversation_history"] = current_history
         session.modified = True
-
 
     def _extract_json_from_llm_output(self, raw_llm_output):
         json_match = re.search(
@@ -98,9 +102,11 @@ Begin."""
             extracted_json_str = (
                 json_match.group(1) if json_match.group(1) else json_match.group(2)
             )
-        
+
         if not extracted_json_str:
-            if raw_llm_output.strip().startswith("{") and raw_llm_output.strip().endswith("}"):
+            if raw_llm_output.strip().startswith(
+                "{"
+            ) and raw_llm_output.strip().endswith("}"):
                 extracted_json_str = raw_llm_output
             else:
                 raise json.JSONDecodeError(
@@ -113,45 +119,61 @@ Begin."""
         weights = []
         for item in references_data_list:
             if not isinstance(item, dict):
-                self.logger.warn(f"Item in 'references' list is not a dictionary: {item}. Skipping.")
+                self.logger.warn(
+                    f"Item in 'references' list is not a dictionary: {item}. Skipping."
+                )
                 continue
             ref_str = item.get("reference")
             rel_score = item.get("relevance_score")
             help_score = item.get("helpfulness_score")
 
             if not isinstance(ref_str, str) or not ref_str.strip():
-                self.logger.warn(f"Invalid or missing 'reference' string in item: {item}. Skipping.")
+                self.logger.warn(
+                    f"Invalid or missing 'reference' string in item: {item}. Skipping."
+                )
                 continue
             try:
-                rel_score_num = float(rel_score if isinstance(rel_score, (int, float)) else 0)
-                help_score_num = float(help_score if isinstance(help_score, (int, float)) else 0)
+                rel_score_num = float(
+                    rel_score if isinstance(rel_score, (int, float)) else 0
+                )
+                help_score_num = float(
+                    help_score if isinstance(help_score, (int, float)) else 0
+                )
             except (ValueError, TypeError):
-                self.logger.warn(f"Invalid score types in item: {item}. Defaulting scores to 0.")
+                self.logger.warn(
+                    f"Invalid score types in item: {item}. Defaulting scores to 0."
+                )
                 rel_score_num = 0
                 help_score_num = 0
-            
+
             combined_score = rel_score_num + help_score_num
-            weight = max(1, combined_score) # Ensure weight is at least 1
+            weight = max(1, combined_score)  # Ensure weight is at least 1
             valid_references_for_selection.append(ref_str)
             weights.append(weight)
-        
+
         if not valid_references_for_selection:
-            return None, None # Indicate no valid references found
+            return None, None  # Indicate no valid references found
         return valid_references_for_selection, weights
 
     def get_llm_bible_reference(self, session, user_query):
         if not self.client:
-            self.logger.error("OpenAI client not initialized. LLM functionality disabled.")
+            self.logger.error(
+                "OpenAI client not initialized. LLM functionality disabled."
+            )
             return {"error": "LLM service is not configured on the server."}, 500
 
         current_history = self._get_conversation_history(session)
-        current_history.append({"role": "user", "content": user_query}) # Add current user query
+        current_history.append(
+            {"role": "user", "content": user_query}
+        )  # Add current user query
 
         raw_llm_output = None
         last_failed_output_for_reprompt = None
 
         for attempt in range(self.MAX_RETRIES):
-            messages_for_api_call = list(current_history) # Use a copy for modifications in this attempt
+            messages_for_api_call = list(
+                current_history
+            )  # Use a copy for modifications in this attempt
 
             if attempt > 0 and last_failed_output_for_reprompt is not None:
                 reprompt_instruction_content = (
@@ -161,8 +183,12 @@ Begin."""
                     f"Your previous problematic response was: ```\n{last_failed_output_for_reprompt}\n```. "
                     f"Please provide the corrected response based on the original query and context."
                 )
-                messages_for_api_call.append({"role": "user", "content": reprompt_instruction_content})
-                self.logger.info("Added re-prompt instruction for formatting correction.")
+                messages_for_api_call.append(
+                    {"role": "user", "content": reprompt_instruction_content}
+                )
+                self.logger.info(
+                    "Added re-prompt instruction for formatting correction."
+                )
 
             try:
                 self.logger.info(
@@ -172,99 +198,205 @@ Begin."""
                     model="deepseek/deepseek-r1-distill-qwen-32b:free",
                     messages=messages_for_api_call,
                 )
-                raw_llm_output = completion.choices[0].message.content if completion.choices else ""
+                raw_llm_output = (
+                    completion.choices[0].message.content if completion.choices else ""
+                )
 
                 if not raw_llm_output or not raw_llm_output.strip():
-                    self.logger.warn(f"LLM returned empty content on attempt {attempt + 1}. Raw: '{raw_llm_output}'")
+                    self.logger.warn(
+                        f"LLM returned empty content on attempt {attempt + 1}. Raw: '{raw_llm_output}'"
+                    )
                     last_failed_output_for_reprompt = raw_llm_output
-                    if attempt < self.MAX_RETRIES - 1: continue
-                    self._update_conversation_history(session, current_history, user_query, raw_llm_output)
-                    return {"response": "LLM returned an empty response after multiple attempts. Please try rephrasing."}, 200 # Return 200 for client to display
+                    if attempt < self.MAX_RETRIES - 1:
+                        continue
+                    self._update_conversation_history(
+                        session, current_history, user_query, raw_llm_output
+                    )
+                    return {
+                        "response": "LLM returned an empty response after multiple attempts. Please try rephrasing."
+                    }, 200  # Return 200 for client to display
 
                 extracted_json_str = self._extract_json_from_llm_output(raw_llm_output)
                 parsed_json = json.loads(extracted_json_str)
                 references_data_list = parsed_json.get("references")
 
                 if not isinstance(references_data_list, list):
-                    self.logger.warn(f"LLM 'references' is not a list. Attempt {attempt + 1}. Raw: '{raw_llm_output}'")
+                    self.logger.warn(
+                        f"LLM 'references' is not a list. Attempt {attempt + 1}. Raw: '{raw_llm_output}'"
+                    )
                     last_failed_output_for_reprompt = raw_llm_output
-                    if attempt < self.MAX_RETRIES - 1: continue
-                    self._update_conversation_history(session, current_history, user_query, raw_llm_output)
-                    return {"response": "LLM did not return the expected list format. Please try again."}, 200
+                    if attempt < self.MAX_RETRIES - 1:
+                        continue
+                    self._update_conversation_history(
+                        session, current_history, user_query, raw_llm_output
+                    )
+                    return {
+                        "response": "LLM did not return the expected list format. Please try again."
+                    }, 200
 
-                valid_refs, weights = self._parse_llm_references_data(references_data_list)
+                valid_refs, weights = self._parse_llm_references_data(
+                    references_data_list
+                )
 
                 if not valid_refs:
-                    self.logger.warn(f"No valid references found after parsing LLM output. Attempt {attempt + 1}. Raw: '{raw_llm_output}'")
+                    self.logger.warn(
+                        f"No valid references found after parsing LLM output. Attempt {attempt + 1}. Raw: '{raw_llm_output}'"
+                    )
                     last_failed_output_for_reprompt = raw_llm_output
-                    if attempt < self.MAX_RETRIES - 1: continue
-                    self._update_conversation_history(session, current_history, user_query, raw_llm_output)
-                    return {"response": "LLM did not provide any usable Bible references after multiple attempts. Please try rephrasing."}, 200
-                
-                selected_index = random.choices(range(len(valid_refs)), weights=weights, k=1)[0]
+                    if attempt < self.MAX_RETRIES - 1:
+                        continue
+                    self._update_conversation_history(
+                        session, current_history, user_query, raw_llm_output
+                    )
+                    return {
+                        "response": "LLM did not provide any usable Bible references after multiple attempts. Please try rephrasing."
+                    }, 200
+
+                selected_index = random.choices(
+                    range(len(valid_refs)), weights=weights, k=1
+                )[0]
                 passage_reference = valid_refs[selected_index]
                 selected_weight = weights[selected_index]
 
-                self.logger.info(f"Selected reference: '{passage_reference}' (score: {selected_weight}). Query: '{user_query}'.")
+                self.logger.info(
+                    f"Selected reference: '{passage_reference}' (score: {selected_weight}). Query: '{user_query}'."
+                )
 
                 parsed_bible_ref = self.bible_parser.parse_reference(passage_reference)
                 if not parsed_bible_ref:
-                    self.logger.warn(f"Could not parse selected LLM reference: '{passage_reference}'. Raw LLM: '{raw_llm_output}'")
-                    self._update_conversation_history(session, current_history, user_query, raw_llm_output)
-                    return {"response": f"Could not understand the selected Bible reference: '{passage_reference}'. Please try rephrasing your query."}, 200
+                    self.logger.warn(
+                        f"Could not parse selected LLM reference: '{passage_reference}'. Raw LLM: '{raw_llm_output}'"
+                    )
+                    self._update_conversation_history(
+                        session, current_history, user_query, raw_llm_output
+                    )
+                    return {
+                        "response": f"Could not understand the selected Bible reference: '{passage_reference}'. Please try rephrasing your query."
+                    }, 200
 
                 passage_text = self.bible_parser.get_passage(parsed_bible_ref)
-                
-                lookup_error_prefixes = ("Error: Bible data not loaded", "Book '", "Chapter ", "Start verse ", "End verse ", "No verses found for '")
+
+                lookup_error_prefixes = (
+                    "Error: Bible data not loaded",
+                    "Book '",
+                    "Chapter ",
+                    "Start verse ",
+                    "End verse ",
+                    "No verses found for '",
+                )
                 is_lookup_error = False
                 if isinstance(passage_text, str):
                     for prefix in lookup_error_prefixes:
                         if passage_text.startswith(prefix):
-                            if prefix in ["Chapter ", "Start verse ", "End verse "] and ("not found" in passage_text or "is invalid" in passage_text):
-                                is_lookup_error = True; break
-                            elif prefix not in ["Chapter ", "Start verse ", "End verse "]:
-                                is_lookup_error = True; break
-                
+                            if prefix in [
+                                "Chapter ",
+                                "Start verse ",
+                                "End verse ",
+                            ] and (
+                                "not found" in passage_text
+                                or "is invalid" in passage_text
+                            ):
+                                is_lookup_error = True
+                                break
+                            elif prefix not in [
+                                "Chapter ",
+                                "Start verse ",
+                                "End verse ",
+                            ]:
+                                is_lookup_error = True
+                                break
+
                 if is_lookup_error:
-                    self.logger.error(f"Bible lookup error for '{passage_reference}': {passage_text}. LLM Raw: '{raw_llm_output}'")
-                    self._update_conversation_history(session, current_history, user_query, raw_llm_output)
-                    return {"response": "I received a Bible reference, but it appears to be invalid (e.g., chapter or verse out of range). Please try rephrasing your query."}, 200
-                
-                self._update_conversation_history(session, current_history, user_query, raw_llm_output) # Save successful interaction
+                    self.logger.error(
+                        f"Bible lookup error for '{passage_reference}': {passage_text}. LLM Raw: '{raw_llm_output}'"
+                    )
+                    self._update_conversation_history(
+                        session, current_history, user_query, raw_llm_output
+                    )
+                    return {
+                        "response": "I received a Bible reference, but it appears to be invalid (e.g., chapter or verse out of range). Please try rephrasing your query."
+                    }, 200
+
+                self._update_conversation_history(
+                    session, current_history, user_query, raw_llm_output
+                )  # Save successful interaction
                 return {"response": passage_text, "score": selected_weight}, 200
 
             except json.JSONDecodeError as e:
-                self.logger.warn(f"LLM response not valid JSON. Attempt {attempt + 1}. Error: {e}. Raw: '{raw_llm_output}'")
+                self.logger.warn(
+                    f"LLM response not valid JSON. Attempt {attempt + 1}. Error: {e}. Raw: '{raw_llm_output}'"
+                )
                 last_failed_output_for_reprompt = raw_llm_output
-                if attempt < self.MAX_RETRIES - 1: continue
-                self._update_conversation_history(session, current_history, user_query, raw_llm_output)
-                return {"response": "LLM did not return the expected JSON format after multiple attempts. Please try again."}, 200
-            
+                if attempt < self.MAX_RETRIES - 1:
+                    continue
+                self._update_conversation_history(
+                    session, current_history, user_query, raw_llm_output
+                )
+                return {
+                    "response": "LLM did not return the expected JSON format after multiple attempts. Please try again."
+                }, 200
+
             except APIConnectionError as e:
-                self.logger.error(f"OpenAI APIConnectionError on attempt {attempt + 1}: {e}")
-                if attempt < self.MAX_RETRIES - 1: continue
-                self._update_conversation_history(session, current_history, user_query, "Error: Could not connect to the LLM service.")
+                self.logger.error(
+                    f"OpenAI APIConnectionError on attempt {attempt + 1}: {e}"
+                )
+                if attempt < self.MAX_RETRIES - 1:
+                    continue
+                self._update_conversation_history(
+                    session,
+                    current_history,
+                    user_query,
+                    "Error: Could not connect to the LLM service.",
+                )
                 return {"error": "Error: Could not connect to the LLM service."}, 503
             except RateLimitError as e:
                 self.logger.error(f"OpenAI RateLimitError: {e}")
-                self._update_conversation_history(session, current_history, user_query, "Error: Rate limit exceeded with the LLM service.")
-                return {"error": "Error: Rate limit exceeded with the LLM service. Please try again later."}, 429
+                self._update_conversation_history(
+                    session,
+                    current_history,
+                    user_query,
+                    "Error: Rate limit exceeded with the LLM service.",
+                )
+                return {
+                    "error": "Error: Rate limit exceeded with the LLM service. Please try again later."
+                }, 429
             except APITimeoutError as e:
                 self.logger.error(f"OpenAI APITimeoutError on attempt {attempt+1}: {e}")
-                if attempt < self.MAX_RETRIES - 1: continue
-                self._update_conversation_history(session, current_history, user_query, "Error: Request to LLM service timed out.")
+                if attempt < self.MAX_RETRIES - 1:
+                    continue
+                self._update_conversation_history(
+                    session,
+                    current_history,
+                    user_query,
+                    "Error: Request to LLM service timed out.",
+                )
                 return {"error": "Error: Request to LLM service timed out."}, 504
             except APIError as e:
-                self.logger.error(f"OpenAI APIError: Status: {e.status_code}, Msg: {e.message}")
+                self.logger.error(
+                    f"OpenAI APIError: Status: {e.status_code}, Msg: {e.message}"
+                )
                 error_message = f"LLM service error: {e.message}"
-                self._update_conversation_history(session, current_history, user_query, f"Error: {error_message}")
+                self._update_conversation_history(
+                    session, current_history, user_query, f"Error: {error_message}"
+                )
                 return {"error": error_message}, e.status_code or 500
             except (IndexError, KeyError) as e:
-                self.logger.error(f"Error parsing LLM SDK response: {e}. Completion: {completion if 'completion' in locals() else 'N/A'}")
+                self.logger.error(
+                    f"Error parsing LLM SDK response: {e}. Completion: {completion if 'completion' in locals() else 'N/A'}"
+                )
                 failed_msg = "Error: Received an unexpected response structure from the LLM service."
-                self._update_conversation_history(session, current_history, user_query, failed_msg)
+                self._update_conversation_history(
+                    session, current_history, user_query, failed_msg
+                )
                 return {"error": failed_msg}, 500
 
         # Fallback if loop finishes
-        self._update_conversation_history(session, current_history, user_query, "Failed to get a valid response from LLM after multiple retries.")
-        return {"error": "Failed to get a valid response from LLM after multiple retries."}, 500
+        self._update_conversation_history(
+            session,
+            current_history,
+            user_query,
+            "Failed to get a valid response from LLM after multiple retries.",
+        )
+        return {
+            "error": "Failed to get a valid response from LLM after multiple retries."
+        }, 500

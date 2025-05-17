@@ -1,20 +1,13 @@
 import os  # Still needed for FLASK_SECRET_KEY and os.urandom
-import re
-import json
-import random  # For random.choices in /query, random.seed is now in RandomSeeder
 from flask import Flask, render_template, request, jsonify, session
 from dotenv import load_dotenv
 from openai import (
-    OpenAI,
-    APIError,
-    APIConnectionError,
-    RateLimitError,
     OpenAI,
     # APIError, APIConnectionError, RateLimitError, APITimeoutError are now handled in LLMHandler
 )  # OpenAI SDK
 from random_seeder import RandomSeeder
 from bible_parser import BibleParser
-from llm_handler import LLMHandler # Import the new LLMHandler class
+from llm_handler import LLMHandler  # Import the new LLMHandler class
 
 load_dotenv()  # Load variables from .env file
 
@@ -59,7 +52,7 @@ def query_llm():
     # Delegate to LLMHandler
     # The handler will manage session history internally.
     result, status_code = llm_handler.get_llm_bible_reference(session, user_query)
-    
+
     return jsonify(result), status_code
 
 
