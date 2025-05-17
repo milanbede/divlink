@@ -361,22 +361,34 @@ Begin."""
         ]
 
     # The 'prompt' variable is no longer directly used for the API call messages.
-    # The 'current_history' list serves as the messages payload.
+    # The 'current_history' list serves as the base messages payload.
 
     max_retries = 3
-    raw_llm_output = (
-        None  # Initialize to ensure it's defined for history append on failure
-    )
+    raw_llm_output = None
+    last_failed_output_for_reprompt = None # Store problematic output for re-prompting
 
     for attempt in range(max_retries):
+        messages_for_api_call = list(current_history) # Start with the base history for this attempt
+
+        if attempt > 0 and last_failed_output_for_reprompt is not None:
+            reprompt_instruction_content = (
+                f"Your previous response was not in the correct JSON format or was empty. "
+                f"Please ensure your output is a valid JSON object as specified in the initial system instructions. "
+                f"The expected structure is: {{\"references\": [{{\"reference\": \"Book C:V-V\", \"relevance_score\": N, \"helpfulness_score\": N}}, ...]}}. "
+                f"Your previous problematic response was: ```\n{last_failed_output_for_reprompt}\n```. "
+                f"Please provide the corrected response based on the original query and context."
+            )
+            messages_for_api_call.append({"role": "user", "content": reprompt_instruction_content})
+            app.logger.info("Added re-prompt instruction for formatting correction.")
+
         try:
             app.logger.info(
-                f"Attempt {attempt + 1} for query: '{user_query}'. History length: {len(current_history)}"
+                f"Attempt {attempt + 1} for query: '{user_query}'. Messages length for API: {len(messages_for_api_call)}"
             )
 
             completion = client.chat.completions.create(
                 model="deepseek/deepseek-r1-distill-qwen-32b:free",  # Or your chosen model
-                messages=current_history,
+                messages=messages_for_api_call, # Use the potentially augmented message list
                 # temperature=0.7, # Optional: Adjust creativity
             )
 
@@ -388,11 +400,12 @@ Begin."""
                 app.logger.warn(
                     f"LLM returned empty content on attempt {attempt + 1} for query: '{user_query}'. Raw response: '{raw_llm_output}'"
                 )
+                last_failed_output_for_reprompt = raw_llm_output # Store for re-prompt
                 if attempt < max_retries - 1:
                     continue  # Retry
                 else:
                     session["conversation_history"] = current_history  # Save user query
-                    if raw_llm_output is not None:  # Check if raw_llm_output was set
+                    if raw_llm_output is not None:
                         session["conversation_history"].append(
                             {"role": "assistant", "content": raw_llm_output}
                         )  # Save empty assistant response
@@ -446,6 +459,7 @@ Begin."""
                     app.logger.warn(
                         f"LLM response JSON 'references' is not a list on attempt {attempt + 1}. Query: '{user_query}'. Raw output: '{raw_llm_output}'"
                     )
+                    last_failed_output_for_reprompt = raw_llm_output # Store for re-prompt
                     if attempt < max_retries - 1:
                         continue  # Retry
                     else:
@@ -508,6 +522,7 @@ Begin."""
                     app.logger.warn(
                         f"No valid references with scores found after parsing LLM output on attempt {attempt + 1}. Query: '{user_query}'. Raw output: '{raw_llm_output}'"
                     )
+                    last_failed_output_for_reprompt = raw_llm_output # Store for re-prompt
                     if attempt < max_retries - 1:
                         continue  # Retry
                     else:
@@ -603,6 +618,7 @@ Begin."""
                 app.logger.warn(
                     f"LLM response was not valid JSON on attempt {attempt + 1}. Query: '{user_query}'. Raw output: '{raw_llm_output}'"
                 )
+                last_failed_output_for_reprompt = raw_llm_output # Store for re-prompt
                 if attempt < max_retries - 1:
                     continue  # Retry
                 else:
