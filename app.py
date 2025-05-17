@@ -319,7 +319,7 @@ Begin."""
                 )
 
                 # Successfully got a passage_reference, now parse it and get text
-                parsed_ref = parse_bible_reference(passage_reference)
+                parsed_ref = bible_parser.parse_reference(passage_reference)
                 if not parsed_ref:
                     app.logger.warn(
                         f"Could not parse the selected LLM reference: '{passage_reference}' for query: '{user_query}'. LLM raw output: '{raw_llm_output}'"
@@ -335,11 +335,11 @@ Begin."""
                         }
                     )
 
-                passage_text = get_passage_from_json(parsed_ref)
+                passage_text = bible_parser.get_passage(parsed_ref)
 
-                # Check if get_passage_from_json returned an error message
+                # Check if get_passage returned an error message
                 lookup_error_prefixes = (
-                    "Error: Bible data not loaded",
+                    "Error: Bible data not loaded", # This specific error comes from BibleParser
                     "Book '",
                     "Chapter ",  # e.g., "Chapter 5 not found..."
                     "Start verse ",
