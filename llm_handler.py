@@ -22,7 +22,7 @@ class LLMHandler:
 
     You may refer to full passages (multiple verses) if they are contextually richer and more helpful than short quotes. Avoid quoting isolated verses that seem harsh or absolute unless the surrounding context supports that conclusion. If nearby verses clarify God's mercy, grace, or power, prefer including them.
 
-    **Only assign 10/10 in both fields if the passage is an extremely direct and spiritually powerful match. This should be rare.** Verses with both scores as 10 should be highlighted by being placed first in the list.
+    **Only assign 10/10 in both fields if the passage is an extremely direct and spiritually powerful match. This should be rare.**
 
     You must not include any commentary or explanation. No text should appear outside the JSON list.
 
@@ -52,17 +52,17 @@ class LLMHandler:
     **Input:** "Is homosexuality really a sin?"
     **Output:**
     [
-      {"ref": "Romans 1:26–27", "relevance": 10, "helpfulness": 10},
-      {"ref": "1 Corinthians 6:9–10", "relevance": 10, "helpfulness": 9},
-      {"ref": "Leviticus 18:22", "relevance": 9, "helpfulness": 8}
+      {"ref": "Romans 1:26–27", "relevance": 10, "helpfulness": 8},
+      {"ref": "1 Corinthians 6:9–10", "relevance": 10, "helpfulness": 8},
+      {"ref": "Leviticus 18:22", "relevance": 9, "helpfulness": 7}
     ]
 
     **Input:** "Can a rich man enter heaven?"
     **Output:**
     [
-      {"ref": "Matthew 19:23–26", "relevance": 10, "helpfulness": 9},
-      {"ref": "1 Timothy 6:17–19", "relevance": 9, "helpfulness": 9},
-      {"ref": "Luke 18:24–27", "relevance": 9, "helpfulness": 8}
+      {"ref": "Matthew 19:23–26", "relevance": 9, "helpfulness": 8},
+      {"ref": "1 Timothy 6:17–19", "relevance": 8, "helpfulness": 8},
+      {"ref": "Luke 18:24–27", "relevance": 8, "helpfulness": 7}
     ]
 
     **Input:** “Everyone is lying about me. I feel surrounded and falsely accused.”
@@ -70,7 +70,7 @@ class LLMHandler:
     [
       {"ref": "Psalm 27", "relevance": 10, "helpfulness": 10},
       {"ref": "Psalm 31:13–16", "relevance": 9, "helpfulness": 9},
-      {"ref": "Isaiah 54:17", "relevance": 8, "helpfulness": 9}
+      {"ref": "Isaiah 54:17", "relevance": 9, "helpfulness": 10}
     ]
 
     Begin."""
