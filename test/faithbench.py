@@ -6,7 +6,15 @@ from openai import OpenAI
 
 from llm_handler import LLMHandler
 from bible_parser import BibleParser
-from .faithbench_cases import FAITHBENCH_TEST_CASES
+# Import test cases from individual category files
+from .faithbench_anger import ANGER_TEST_CASES
+from .faithbench_apathy import APATHY_TEST_CASES
+from .faithbench_despair import DESPAIR_TEST_CASES
+from .faithbench_gluttony import GLUTTONY_TEST_CASES
+from .faithbench_greed import GREED_TEST_CASES
+from .faithbench_lust import LUST_TEST_CASES
+from .faithbench_pride import PRIDE_TEST_CASES
+from .faithbench_vanity import VANITY_TEST_CASES
 
 # Load environment variables from .env file for API Key
 load_dotenv()
@@ -38,27 +46,48 @@ class TestFaithBenchIntegration(unittest.TestCase):
             client=self.openai_client,  # Use the real client
             logger=self.mock_logger,
             bible_parser=self.bible_parser,
+            model_name="deepseek/deepseek-r1-distill-qwen-32b:free", # Ensure model_name is passed
         )
 
     def test_faithbench_prompts_integration(self):
-        if not FAITHBENCH_TEST_CASES or (
-            len(FAITHBENCH_TEST_CASES) == 2
-            and FAITHBENCH_TEST_CASES[0]["prompt"] == "I feel like giving up."
-        ):
+        # Aggregate all test cases and add category information
+        all_test_data_sources = {
+            "anger": ANGER_TEST_CASES,
+            "apathy": APATHY_TEST_CASES,
+            "despair": DESPAIR_TEST_CASES,
+            "gluttony": GLUTTONY_TEST_CASES,
+            "greed": GREED_TEST_CASES,
+            "lust": LUST_TEST_CASES,
+            "pride": PRIDE_TEST_CASES,
+            "vanity": VANITY_TEST_CASES,
+        }
+
+        ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY = []
+        for category, cases_list in all_test_data_sources.items():
+            if cases_list: # Ensure the list is not None or empty
+                for case_content in cases_list:
+                    case_copy = case_content.copy()
+                    case_copy["category"] = category
+                    ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY.append(case_copy)
+            else:
+                self.mock_logger.warning(f"No test cases found for category: {category}")
+
+
+        if not ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY:
             self.skipTest(
-                "FaithBench test cases are not fully populated. Skipping integration test."
+                "No FaithBench test cases were loaded from category files. Skipping integration test."
             )
 
         success_count = 0
-        total_cases = len(FAITHBENCH_TEST_CASES)
+        total_cases = len(ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY)
         results_summary = []
 
-        for i, case in enumerate(FAITHBENCH_TEST_CASES):
-            with self.subTest(prompt=case["prompt"]):
+        for i, case in enumerate(ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY):
+            with self.subTest(category=case["category"], prompt=case["prompt"]):
                 mock_session = {}  # Simulate Flask session for conversation history
 
                 self.mock_logger.info(
-                    f"FaithBench Test Case {i+1}/{total_cases}: Prompt: '{case['prompt']}'"
+                    f"FaithBench Test Case {i+1}/{total_cases}: Category: {case['category']}, Prompt: '{case['prompt']}'"
                 )
 
                 # Call the method under test - this makes a REAL API call
@@ -134,17 +163,17 @@ class TestFaithBenchIntegration(unittest.TestCase):
                 if is_expected_reference_found:
                     success_count += 1
                     results_summary.append(
-                        f"PASS: Prompt: \"{case['prompt']}\" -> Matched: \"{matched_reference}\" (Returned: \"{returned_reference_line}\")"
+                        f"PASS ({case['category']}): Prompt: \"{case['prompt']}\" -> Matched: \"{matched_reference}\" (Returned: \"{returned_reference_line}\")"
                     )
                     self.mock_logger.info(
-                        f"FaithBench PASS: Prompt: \"{case['prompt']}\" -> Matched: \"{matched_reference}\""
+                        f"FaithBench PASS ({case['category']}): Prompt: \"{case['prompt']}\" -> Matched: \"{matched_reference}\""
                     )
                 else:
                     results_summary.append(
-                        f"FAIL: Prompt: \"{case['prompt']}\" -> Expected one of {case['expected_references']}, Got: \"{returned_reference_line}\""
+                        f"FAIL ({case['category']}): Prompt: \"{case['prompt']}\" -> Expected one of {case['expected_references']}, Got: \"{returned_reference_line}\""
                     )
                     self.mock_logger.warning(
-                        f"FaithBench FAIL: Prompt: \"{case['prompt']}\" -> Expected one of {case['expected_references']}, Got: \"{returned_reference_line}\""
+                        f"FaithBench FAIL ({case['category']}): Prompt: \"{case['prompt']}\" -> Expected one of {case['expected_references']}, Got: \"{returned_reference_line}\""
                     )
 
                 # This assertion will fail the test if any case fails, which is standard.

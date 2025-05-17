@@ -1,7 +1,7 @@
 # FaithBench Test Data: Category - Despair & Hope
 # Each dictionary in the list represents a test case focused on overcoming despair, doubt, and fear,
 # and on building hope, trust, and confidence in God's promises.
-FAITHBENCH_TEST_CASES = [
+DESPAIR_TEST_CASES = [
     {
         "prompt": "I feel like giving up.",
         "expected_references": [

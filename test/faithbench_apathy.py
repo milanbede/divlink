@@ -1,7 +1,7 @@
 # FaithBench Test Data: Category - Apathy & Diligence
 # Each dictionary in the list represents a test case focused on overcoming apathy, procrastination, or spiritual indifference,
 # and on cultivating diligence, discipline, zeal, and responsibility.
-FAITHBENCH_TEST_CASES = [
+APATHY_TEST_CASES = [
     {
         "prompt": "I feel spiritually dry and distant from God.",
         "expected_references": [

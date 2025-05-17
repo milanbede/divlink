@@ -3,7 +3,7 @@
 # Each dictionary in the list represents a test case focused on overcoming anger, bitterness, or revenge,
 # and on cultivating patience, forgiveness, and gentleness.
 
-FAITHBENCH_TEST_CASES = [
+ANGER_TEST_CASES = [
     {
         "prompt": "People are targeting and harassing me.",
         "expected_references": [
