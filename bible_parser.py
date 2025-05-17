@@ -1,7 +1,8 @@
 import os
 import json
 import re
-import random # For selecting a random Psalm chapter
+import random  # For selecting a random Psalm chapter
+
 
 class BibleParser:
     def __init__(self, logger, books_dir_override=None):
@@ -19,9 +20,15 @@ class BibleParser:
             else:
                 current_dir = os.path.dirname(__file__)
                 # Potential paths for 'data/books' directory
-                path_option1 = os.path.join(current_dir, "data", "books") # parser at project root
-                path_option2 = os.path.join(current_dir, "..", "data", "books") # parser in subdir (e.g. app/)
-                path_option3 = os.path.join(os.getcwd(), "data", "books") # running from project root
+                path_option1 = os.path.join(
+                    current_dir, "data", "books"
+                )  # parser at project root
+                path_option2 = os.path.join(
+                    current_dir, "..", "data", "books"
+                )  # parser in subdir (e.g. app/)
+                path_option3 = os.path.join(
+                    os.getcwd(), "data", "books"
+                )  # running from project root
 
                 if os.path.isdir(path_option1):
                     self.books_dir_path = path_option1
@@ -30,17 +37,28 @@ class BibleParser:
                 elif os.path.isdir(path_option3):
                     self.books_dir_path = path_option3
                 else:
-                    checked_paths = ", ".join(filter(None, [
-                        path_option1 if not books_dir_override else None, # Only show default if not overridden
-                        path_option2 if not books_dir_override else None,
-                        path_option3 if not books_dir_override else None
-                    ]))
+                    checked_paths = ", ".join(
+                        filter(
+                            None,
+                            [
+                                (
+                                    path_option1 if not books_dir_override else None
+                                ),  # Only show default if not overridden
+                                path_option2 if not books_dir_override else None,
+                                path_option3 if not books_dir_override else None,
+                            ],
+                        )
+                    )
                     raise FileNotFoundError(
                         f"Bible books directory not found. Checked: {checked_paths or 'specified override path'}."
                     )
-            
-            if not os.path.isdir(self.books_dir_path): # Check again in case override was faulty
-                raise FileNotFoundError(f"Specified Bible books directory does not exist or is not a directory: {self.books_dir_path}")
+
+            if not os.path.isdir(
+                self.books_dir_path
+            ):  # Check again in case override was faulty
+                raise FileNotFoundError(
+                    f"Specified Bible books directory does not exist or is not a directory: {self.books_dir_path}"
+                )
 
             self.logger.info(f"Scanning for Bible book files in: {self.books_dir_path}")
             book_files_found = 0
@@ -50,43 +68,59 @@ class BibleParser:
                     try:
                         # We only need to load the book temporarily to get its name and abbrev for the map
                         with open(file_path, "r", encoding="utf-8") as f:
-                            book_metadata = json.load(f) 
-                        
+                            book_metadata = json.load(f)
+
                         book_name = book_metadata.get("name")
                         book_abbrev = book_metadata.get("abbrev")
 
                         if not book_name or not book_abbrev:
-                            self.logger.warning(f"Skipping {filename}: missing 'name' or 'abbrev' in JSON.")
+                            self.logger.warning(
+                                f"Skipping {filename}: missing 'name' or 'abbrev' in JSON."
+                            )
                             continue
-                        
-                        canonical_name_from_file = filename[:-5] # e.g., "Genesis" from "Genesis.json"
+
+                        canonical_name_from_file = filename[
+                            :-5
+                        ]  # e.g., "Genesis" from "Genesis.json"
 
                         self.book_map[book_name.lower()] = canonical_name_from_file
                         self.book_map[book_abbrev.lower()] = canonical_name_from_file
-                        
+
                         if book_name.lower() == "psalms":
-                            self.book_map["psalm"] = canonical_name_from_file # Alias "psalm" for "Psalms"
-                        
+                            self.book_map["psalm"] = (
+                                canonical_name_from_file  # Alias "psalm" for "Psalms"
+                            )
+
                         # Add common aliases
                         if book_name.lower() == "song of solomon":
                             self.book_map["song of songs"] = canonical_name_from_file
-                        
-                        book_files_found +=1
+
+                        book_files_found += 1
                     except json.JSONDecodeError:
-                        self.logger.error(f"Error decoding JSON from book file {filename} in {self.books_dir_path}.")
+                        self.logger.error(
+                            f"Error decoding JSON from book file {filename} in {self.books_dir_path}."
+                        )
                     except Exception as e:
-                        self.logger.error(f"Error processing book file {filename} in {self.books_dir_path}: {e}")
-            
+                        self.logger.error(
+                            f"Error processing book file {filename} in {self.books_dir_path}: {e}"
+                        )
+
             if not self.book_map:
-                self.logger.error(f"No book data loaded. Book map is empty. Searched in {self.books_dir_path}")
+                self.logger.error(
+                    f"No book data loaded. Book map is empty. Searched in {self.books_dir_path}"
+                )
             else:
-                self.logger.info(f"Book index with {len(self.book_map)} distinct entries (from {book_files_found} files) loaded successfully from {self.books_dir_path}.")
+                self.logger.info(
+                    f"Book index with {len(self.book_map)} distinct entries (from {book_files_found} files) loaded successfully from {self.books_dir_path}."
+                )
 
         except FileNotFoundError as e:
             self.logger.error(f"Error finding Bible books directory: {e}")
-            self.books_dir_path = None 
+            self.books_dir_path = None
         except Exception as e:
-            self.logger.error(f"An unexpected error occurred loading the book index: {e}")
+            self.logger.error(
+                f"An unexpected error occurred loading the book index: {e}"
+            )
             self.books_dir_path = None
 
     def is_data_loaded(self):
@@ -124,7 +158,9 @@ class BibleParser:
             }
             return parsed_ref
         except ValueError:
-            self.logger.error(f"ValueError parsing numbers in reference: {reference_str}")
+            self.logger.error(
+                f"ValueError parsing numbers in reference: {reference_str}"
+            )
             return None
 
     def get_passage(self, parsed_ref):
@@ -132,7 +168,9 @@ class BibleParser:
         Retrieves and formats Bible passage text from the loaded JSON data.
         """
         if not self.is_data_loaded():
-            self.logger.error("Attempted to get passage, but Bible book index is not loaded.")
+            self.logger.error(
+                "Attempted to get passage, but Bible book index is not loaded."
+            )
             return "Error: Bible book index not loaded on the server."
 
         book_name_key = parsed_ref["book_name"].lower()
@@ -144,30 +182,42 @@ class BibleParser:
                 potential_singular_key = book_name_key[:-1]
                 if self.book_map.get(potential_singular_key) is not None:
                     canonical_book_name = self.book_map.get(potential_singular_key)
-            elif not book_name_key.endswith("s"): # only try adding 's' if it doesn't already end with 's'
+            elif not book_name_key.endswith(
+                "s"
+            ):  # only try adding 's' if it doesn't already end with 's'
                 potential_plural_key = book_name_key + "s"
                 if self.book_map.get(potential_plural_key) is not None:
                     canonical_book_name = self.book_map.get(potential_plural_key)
 
             if canonical_book_name is None:
-                self.logger.warning(f"Book '{parsed_ref['book_name']}' (key: '{book_name_key}') not found in book_map.")
+                self.logger.warning(
+                    f"Book '{parsed_ref['book_name']}' (key: '{book_name_key}') not found in book_map."
+                )
                 return f"Book '{parsed_ref['book_name']}' not found. Please check spelling or try a standard abbreviation (e.g., Gen, Exo, Psa, Mat, Rom)."
 
         # Now, load the specific book's data
-        book_file_path = os.path.join(self.books_dir_path, f"{canonical_book_name}.json")
+        book_file_path = os.path.join(
+            self.books_dir_path, f"{canonical_book_name}.json"
+        )
         try:
             with open(book_file_path, "r", encoding="utf-8") as f:
-                book_data = json.load(f) # This is the single book's data structure
+                book_data = json.load(f)  # This is the single book's data structure
         except FileNotFoundError:
-            self.logger.error(f"Data file for book '{canonical_book_name}' not found at {book_file_path}.")
+            self.logger.error(
+                f"Data file for book '{canonical_book_name}' not found at {book_file_path}."
+            )
             return f"Error: Data file for book '{parsed_ref['book_name']}' not found on server."
         except json.JSONDecodeError:
-            self.logger.error(f"Error decoding JSON for book '{canonical_book_name}' from {book_file_path}.")
+            self.logger.error(
+                f"Error decoding JSON for book '{canonical_book_name}' from {book_file_path}."
+            )
             return f"Error: Could not decode data for book '{parsed_ref['book_name']}'."
         except Exception as e:
-            self.logger.error(f"Unexpected error loading book data for '{canonical_book_name}' from {book_file_path}: {e}")
+            self.logger.error(
+                f"Unexpected error loading book data for '{canonical_book_name}' from {book_file_path}: {e}"
+            )
             return f"Error: Could not load data for book '{parsed_ref['book_name']}' due to an unexpected issue."
-            
+
         chapter_num = parsed_ref["chapter"]
         chapter_index = chapter_num - 1
 
@@ -227,24 +277,34 @@ class BibleParser:
             return "Error: Bible book index not available to fetch a random Psalm."
 
         # "psalm" key in book_map should map to the canonical filename like "Psalms"
-        psalms_canonical_name = self.book_map.get("psalm") 
+        psalms_canonical_name = self.book_map.get("psalm")
 
         if psalms_canonical_name is None:
-            self.logger.error("Book 'Psalms' (via 'psalm' key) not found in book_map for random Psalm.")
+            self.logger.error(
+                "Book 'Psalms' (via 'psalm' key) not found in book_map for random Psalm."
+            )
             return "Error: Book of Psalms not found in index."
 
-        psalms_file_path = os.path.join(self.books_dir_path, f"{psalms_canonical_name}.json")
+        psalms_file_path = os.path.join(
+            self.books_dir_path, f"{psalms_canonical_name}.json"
+        )
         try:
             with open(psalms_file_path, "r", encoding="utf-8") as f:
                 psalms_book_data = json.load(f)
         except FileNotFoundError:
-            self.logger.error(f"Psalms data file ('{psalms_canonical_name}.json') not found at {psalms_file_path}.")
+            self.logger.error(
+                f"Psalms data file ('{psalms_canonical_name}.json') not found at {psalms_file_path}."
+            )
             return "Error: Psalms data file not found on server."
         except json.JSONDecodeError:
-            self.logger.error(f"Error decoding Psalms JSON from '{psalms_canonical_name}.json' at {psalms_file_path}.")
+            self.logger.error(
+                f"Error decoding Psalms JSON from '{psalms_canonical_name}.json' at {psalms_file_path}."
+            )
             return "Error: Could not decode Psalms data."
         except Exception as e:
-            self.logger.error(f"Unexpected error loading Psalms data from {psalms_file_path}: {e}")
+            self.logger.error(
+                f"Unexpected error loading Psalms data from {psalms_file_path}: {e}"
+            )
             return "Error: Could not load Psalms data due to an unexpected issue."
 
         num_chapters_in_psalms = len(psalms_book_data["chapters"])
@@ -268,15 +328,15 @@ class BibleParser:
         if (
             not passage_text
             or passage_text.startswith("Error:")
-            or passage_text.startswith("Book '") # From get_passage error
-            or passage_text.startswith("Chapter ") # From get_passage error
-            or passage_text.startswith("No verses found") # From get_passage error
+            or passage_text.startswith("Book '")  # From get_passage error
+            or passage_text.startswith("Chapter ")  # From get_passage error
+            or passage_text.startswith("No verses found")  # From get_passage error
         ):
             self.logger.error(
                 f"Failed to get passage for random Psalm: {psalms_book_data['name']} {random_chapter_num}. Internal error: {passage_text}"
             )
             return "Error: Could not retrieve the random Psalm text due to an internal issue."
-        
+
         self.logger.info(
             f"Successfully retrieved random Psalm: {psalms_book_data['name']} {random_chapter_num}"
         )
