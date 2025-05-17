@@ -2,7 +2,7 @@ import os
 import requests
 import json
 import re  # For parsing Bible references
-import xml.etree.ElementTree as ET  # For parsing NIST XML
+# import xml.etree.ElementTree as ET # No longer needed for NIST
 import random  # For selecting a random reference
 from flask import Flask, render_template, request, jsonify, session
 from dotenv import load_dotenv
@@ -63,36 +63,24 @@ def get_nist_seed():
             "https://beacon.nist.gov/beacon/2.0/pulse/last", timeout=5
         )
         response.raise_for_status()
-        # NIST beacon returns XML, so we parse it.
-        xml_root = ET.fromstring(response.content)
-        # Find the outputValue element. Namespace handling might be needed if the XML is complex.
-        # For NIST beacon, it's usually straightforward.
-        # Example path, adjust if NIST XML structure changes:
-        # Look for elements like <outputValue> under <pulse> or similar.
-        # A more robust way might involve namespaces if they are used.
-        # For simplicity, assuming a direct find or a common path.
-        output_value_element = xml_root.find(
-            ".//{urn:nist-gov:beacon:pulse:0.1.0}outputValue"
-        )  # Example with namespace
-        if (
-            output_value_element is None
-        ):  # Fallback to find without namespace if previous fails
-            output_value_element = xml_root.find(".//outputValue")
+        data = response.json() # NIST beacon v2.0 returns JSON
+        
+        # Access the outputValue from the nested structure
+        randomness_hex = data.get("pulse", {}).get("outputValue")
 
-        if output_value_element is not None and output_value_element.text:
-            randomness_hex = output_value_element.text
+        if randomness_hex:
             app.logger.info("Successfully fetched seed from NIST beacon.")
             return int(randomness_hex, 16)
         else:
             app.logger.error(
-                "NIST beacon response did not contain 'outputValue' field or it was empty."
+                "NIST beacon JSON response did not contain 'pulse.outputValue' field or it was empty."
             )
             return None
     except requests.exceptions.RequestException as e:
         app.logger.error(f"Could not fetch seed from NIST beacon: {e}.")
         return None
-    except (ET.ParseError, ValueError, TypeError, KeyError) as e:
-        app.logger.error(f"Error processing NIST beacon response: {e}.")
+    except (json.JSONDecodeError, ValueError, TypeError, KeyError) as e: # Updated exception handling
+        app.logger.error(f"Error processing NIST beacon JSON response: {e}.")
         return None
 
 
