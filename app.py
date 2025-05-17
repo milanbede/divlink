@@ -210,8 +210,6 @@ Output:
 
 Begin."""
 
-Begin."""
-
     # Initialize or retrieve conversation history from session
     if 'conversation_history' not in session:
         session['conversation_history'] = [{"role": "system", "content": base_prompt_text}]
