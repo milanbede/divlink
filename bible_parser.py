@@ -222,7 +222,9 @@ class BibleParser:
         chapter_index = chapter_num - 1
 
         if not (0 <= chapter_index < len(book_data["chapters"])):
-            self.logger.warning(f"Chapter {chapter_num} not found in {book_data['name']} (max: {len(book_data['chapters'])}).")
+            self.logger.warning(
+                f"Chapter {chapter_num} not found in {book_data['name']} (max: {len(book_data['chapters'])})."
+            )
             return None
 
         chapter_verses_list = book_data["chapters"][chapter_index]
@@ -254,13 +256,17 @@ class BibleParser:
             )
 
             if not (0 <= start_verse_index < len(chapter_verses_list)):
-                self.logger.warning(f"Start verse {start_verse} not found in {book_data['name']} chapter {chapter_num} (max: {len(chapter_verses_list)}).")
+                self.logger.warning(
+                    f"Start verse {start_verse} not found in {book_data['name']} chapter {chapter_num} (max: {len(chapter_verses_list)})."
+                )
                 return None
             if (
                 not (0 <= end_verse_index < len(chapter_verses_list))
                 or end_verse_index < start_verse_index
             ):
-                self.logger.warning(f"End verse {end_verse} is invalid for {book_data['name']} chapter {chapter_num}.")
+                self.logger.warning(
+                    f"End verse {end_verse} is invalid for {book_data['name']} chapter {chapter_num}."
+                )
                 return None
 
             for i in range(start_verse_index, end_verse_index + 1):
@@ -286,7 +292,9 @@ class BibleParser:
                 output_reference_display += f":{start_verse}-{end_verse}"
 
         if not passage_texts:
-            self.logger.warning(f"No verses found for '{parsed_ref['book_name']} {chapter_num}:{start_verse if start_verse else ''}{'-'+str(end_verse) if end_verse and end_verse != start_verse else ''}'.")
+            self.logger.warning(
+                f"No verses found for '{parsed_ref['book_name']} {chapter_num}:{start_verse if start_verse else ''}{'-'+str(end_verse) if end_verse and end_verse != start_verse else ''}'."
+            )
             return None
 
         full_passage_text = "\n".join(passage_texts)
@@ -349,7 +357,7 @@ class BibleParser:
         passage_text = self.get_passage(parsed_ref)
 
         # Check if get_passage returned an error (it shouldn't with controlled input, but good practice)
-        if not passage_text: # get_passage now returns None on error
+        if not passage_text:  # get_passage now returns None on error
             self.logger.error(
                 f"Failed to get passage for random Psalm: {psalms_book_data['name']} {random_chapter_num}. get_passage returned None."
             )
