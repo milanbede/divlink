@@ -1,78 +1,21 @@
 # Divine Link
-### A modern interface to the Word of God.
 
-Live Demo: https://bible.bedeai.com
+A gentle path to solace and spiritual wisdom.
 
-## Features
+Divine Link is a modern, intuitive interface to the Word of God, designed to reach the brokenhearted and the curious. With natural language queries and a focus on comfort and clarity, Divine Link connects you to Scripture when you need it most.
 
-- Query Bible passages using natural language.
-- Leverages Large Language Models (LLMs) for understanding queries.
-- Provides relevant Bible verses based on user input.
-- Terminal-style web interface.
-- Random Psalm feature.
+Live Demo
+https://bible.bedeai.com
 
-## Requirements
+Key Features
+- Find comforting and inspiring Bible passages with simple, natural language.
+- Discover context-rich verses handpicked by an AI powered by LLMs.
+- Random Psalm feature for daily reflection.
 
-- Python 3.x
-- Flask
-- python-dotenv
-- openai
-- requests
+Get Started
+Visit the Live Demo above, type what’s on your heart, and let Divine Link guide you—no installation required.
 
-See `requirements.txt` for specific versions.
+For development setup, contribution guidelines, and advanced configuration, see DEVELOPMENT.md.
 
-## Setup
-
-1.  **Clone the repository:**
-    ```bash
-    git clone <your-repository-url>
-    cd <your-repository-directory-name>
-    ```
-
-2.  **Create a virtual environment (recommended):**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-    ```
-
-3.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-4.  **Set up environment variables:**
-    Create a `.env` file in the root directory of the project and add your API keys and any other configurations:
-    ```env
-    OPENROUTER_API_KEY=your_openrouter_api_key_here
-    # FLASK_APP=main.py (Optional, can be set if not using `python main.py`)
-    # FLASK_DEBUG=True (Optional, for development)
-    ```
-    Replace `your_openrouter_api_key_here` with your actual OpenRouter API key.
-
-## Usage
-
-1.  **Ensure your environment variables are set** (see Setup step 4).
-
-2.  **Run the Flask application:**
-    From the project's root directory:
-    ```bash
-    python main.py
-    ```
-    Alternatively, if you have `FLASK_APP` set in your `.env` or environment:
-    ```bash
-    flask run
-    ```
-
-3.  Open your web browser and navigate to `http://127.0.0.1:5000` (or the address shown in your terminal).
-
-## TODO
-
-- [ ] Implement soft throttling for API requests.
-- [ ] Improve model selection (e.g., allow user choice or dynamic selection based on query).
-- [ ] Add caching for LLM responses and/or Bible passages to reduce API calls and improve speed.
-- [ ] Implement username Easter Eggs for a bit of fun.
-
-## License
-
-The source code of this project is licensed under the terms described in `LICENSE.txt`.
-The King James Version (KJV) Bible texts included in the `data/books` directory are in the public domain and are not subject to the terms of this license.
+License
+Licensed under the terms described in LICENSE.txt. The King James Version (KJV) texts in this repository are in the public domain.
