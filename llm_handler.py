@@ -15,15 +15,15 @@ from openai import (
 class LLMHandler:
     BASE_PROMPT_TEXT = """You are a Bible reference guide trained to help people find direct, relevant verses from the Bible that speak to people's questions, challenges, or sins. You do not paraphrase, interpret, or soften God’s Word.
 
-Your role is to return a JSON object only. This object must contain a single key: "references". The value of "references" must be a list of up to 3 objects. Each object must contain:
+Your role is to return a JSON list only. This list must contain up to 3 objects. Each object must contain:
 
-1. "reference": A string containing a valid Bible verse or passage (e.g., "Proverbs 3:5–6" or "Matthew 10:34").
-2. "relevance_score": An integer from 1 (low) to 10 (high), indicating how directly this verse addresses the user's input.
-3. "helpfulness_score": An integer from 1 (low) to 10 (high), indicating how spiritually effective this verse is for confronting, correcting, or encouraging the person according to Scripture.
+1. "ref": A string containing a valid Bible verse or passage (e.g., "Proverbs 3:5–6" or "Matthew 10:34").
+2. "relevance": An integer from 1 (low) to 10 (high), indicating how directly this verse addresses the user's input.
+3. "helpfulness": An integer from 1 (low) to 10 (high), indicating how spiritually effective this verse is for confronting, correcting, or encouraging the person according to Scripture.
 
 **Only assign 10/10 in both fields if the verse is an extremely direct and spiritually powerful match. This should be rare.** Verses with both scores as 10 should be highlighted by being placed first in the list.
 
-You must not include any commentary or explanation. No text should appear outside the JSON object.
+You must not include any commentary or explanation. No text should appear outside the JSON list.
 
 Assume the user is seeking real truth, not comfort or compromise. Prioritize verses that reflect:
 - The **fear of the Lord**
@@ -39,23 +39,19 @@ Use only Scripture. Avoid emotional reassurance, vague spirituality, or modern t
 
 **Input:** "I feel like giving up."
 **Output:**
-{
-  "references": [
-    {"reference": "Galatians 6:9", "relevance_score": 9, "helpfulness_score": 9},
-    {"reference": "Isaiah 40:31", "relevance_score": 8, "helpfulness_score": 9},
-    {"reference": "2 Corinthians 4:16–18", "relevance_score": 7, "helpfulness_score": 8}
-  ]
-}
+[
+  {"ref": "Galatians 6:9", "relevance": 9, "helpfulness": 9},
+  {"ref": "Isaiah 40:31", "relevance": 8, "helpfulness": 9},
+  {"ref": "2 Corinthians 4:16–18", "relevance": 7, "helpfulness": 8}
+]
 
 **Input:** "Is homosexuality really a sin?"
 **Output:**
-{
-  "references": [
-    {"reference": "Romans 1:26–27", "relevance_score": 10, "helpfulness_score": 10},
-    {"reference": "1 Corinthians 6:9–10", "relevance_score": 10, "helpfulness_score": 9},
-    {"reference": "Leviticus 18:22", "relevance_score": 9, "helpfulness_score": 8}
-  ]
-}
+[
+  {"ref": "Romans 1:26–27", "relevance": 10, "helpfulness": 10},
+  {"ref": "1 Corinthians 6:9–10", "relevance": 10, "helpfulness": 9},
+  {"ref": "Leviticus 18:22", "relevance": 9, "helpfulness": 8}
+]
 
 Begin."""
 
@@ -98,7 +94,7 @@ Begin."""
 
     def _extract_json_from_llm_output(self, raw_llm_output):
         json_match = re.search(
-            r"```json\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*?\})",
+            r"```json\s*([\[\{][\s\S]*?[\]\}])\s*```|([\[\{][\s\S]*?[\]\}])",
             raw_llm_output,
             re.DOTALL,
         )
@@ -109,13 +105,12 @@ Begin."""
             )
 
         if not extracted_json_str:
-            if raw_llm_output.strip().startswith(
-                "{"
-            ) and raw_llm_output.strip().endswith("}"):
+            if (raw_llm_output.strip().startswith("{") and raw_llm_output.strip().endswith("}")) or \
+               (raw_llm_output.strip().startswith("[") and raw_llm_output.strip().endswith("]")):
                 extracted_json_str = raw_llm_output
             else:
                 raise json.JSONDecodeError(
-                    "No valid JSON block found in LLM output.", raw_llm_output, 0
+                    "No valid JSON list or object block found in LLM output.", raw_llm_output, 0
                 )
         return extracted_json_str
 
@@ -128,13 +123,13 @@ Begin."""
                     f"Item in 'references' list is not a dictionary: {item}. Skipping."
                 )
                 continue
-            ref_str = item.get("reference")
-            rel_score = item.get("relevance_score")
-            help_score = item.get("helpfulness_score")
+            ref_str = item.get("ref")
+            rel_score = item.get("relevance")
+            help_score = item.get("helpfulness")
 
             if not isinstance(ref_str, str) or not ref_str.strip():
                 self.logger.warn(
-                    f"Invalid or missing 'reference' string in item: {item}. Skipping."
+                    f"Invalid or missing 'ref' string in item: {item}. Skipping."
                 )
                 continue
             try:
@@ -183,8 +178,8 @@ Begin."""
             if attempt > 0 and last_failed_output_for_reprompt is not None:
                 reprompt_instruction_content = (
                     f"Your previous response was not in the correct JSON format or was empty. "
-                    f"Please ensure your output is a valid JSON object as specified in the initial system instructions. "
-                    f'The expected structure is: {{"references": [{{"reference": "Book C:V-V", "relevance_score": N, "helpfulness_score": N}}, ...]}}. '
+                    f"Please ensure your output is a valid JSON list as specified in the initial system instructions. "
+                    f'The expected structure is: [{{"ref": "Book C:V-V", "relevance": N, "helpfulness": N}}, ...]. Please ensure the output is a JSON list, not a JSON object containing a list. '
                     f"Your previous problematic response was: ```\n{last_failed_output_for_reprompt}\n```. "
                     f"Please provide the corrected response based on the original query and context."
                 )
@@ -232,15 +227,13 @@ Begin."""
                     }, 200  # Return 200 for client to display
 
                 extracted_json_str = self._extract_json_from_llm_output(raw_llm_output)
-                try:
-                    parsed_json = json.loads(extracted_json_str)
-                except JSONDecodeError:
-                    parsed_json = {}
-                references_data_list = parsed_json.get("references", None)
+                # json.loads will be called here. If it fails, the main try-except for
+                # JSONDecodeError at the end of the loop will catch it.
+                references_data_list = json.loads(extracted_json_str)
 
                 if not isinstance(references_data_list, list):
                     self.logger.warn(
-                        f"LLM 'references' is not a list. Attempt {attempt + 1}. Raw: '{raw_llm_output}'"
+                        f"LLM output is not a list as expected. Attempt {attempt + 1}. Raw: '{raw_llm_output}'"
                     )
                     last_failed_output_for_reprompt = raw_llm_output
                     if attempt < self.MAX_RETRIES - 1:
