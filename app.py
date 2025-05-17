@@ -1,4 +1,5 @@
-import os # Still needed for FLASK_SECRET_KEY and os.urandom
+import os  # Still needed for FLASK_SECRET_KEY and os.urandom
+
 # json and re are no longer directly needed at the top level of app.py
 import random  # For random.choices in /query, random.seed is now in RandomSeeder
 from flask import Flask, render_template, request, jsonify, session
@@ -11,7 +12,7 @@ from openai import (
     APITimeoutError,
 )  # OpenAI SDK
 from random_seeder import RandomSeeder
-from bible_parser import BibleParser # Import the new class
+from bible_parser import BibleParser  # Import the new class
 
 load_dotenv()  # Load variables from .env file
 
@@ -339,7 +340,7 @@ Begin."""
 
                 # Check if get_passage returned an error message
                 lookup_error_prefixes = (
-                    "Error: Bible data not loaded", # This specific error comes from BibleParser
+                    "Error: Bible data not loaded",  # This specific error comes from BibleParser
                     "Book '",
                     "Chapter ",  # e.g., "Chapter 5 not found..."
                     "Start verse ",
@@ -501,10 +502,20 @@ def random_psalm():
         # For consistency, let's use the message from the parser if it's user-friendly enough
         # or map specific internal errors to user-friendly messages.
         # For now, just pass it through if it's a known error type.
-        if "Bible data not available" in passage_text or "Book of Psalms not found" in passage_text or "No Psalms available" in passage_text:
-             return jsonify({"error": passage_text}), 500 # Or a more generic "Could not retrieve Psalm"
-        return jsonify({"error": "Could not retrieve a random Psalm at this moment."}), 500
-    
+        if (
+            "Bible data not available" in passage_text
+            or "Book of Psalms not found" in passage_text
+            or "No Psalms available" in passage_text
+        ):
+            return (
+                jsonify({"error": passage_text}),
+                500,
+            )  # Or a more generic "Could not retrieve Psalm"
+        return (
+            jsonify({"error": "Could not retrieve a random Psalm at this moment."}),
+            500,
+        )
+
     # If no error, passage_text contains the Psalm
     # The logger message for success is now inside BibleParser.get_random_psalm_passage()
     return jsonify(
