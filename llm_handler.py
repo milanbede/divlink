@@ -91,7 +91,7 @@ class LLMHandler:
         return list(session["conversation_history"])  # Return a copy
 
     def _update_conversation_history(
-        self, session, current_history, user_query, assistant_response=None
+        self, session, current_history, user_query, assistant_response=None, printed_passage=None
     ):
         if assistant_response is not None:
             current_history.append({"role": "assistant", "content": assistant_response})
@@ -105,6 +105,16 @@ class LLMHandler:
             ]
 
         session["conversation_history"] = current_history
+
+        # Track printed passages, limiting to last MAX_HISTORY_PAIRS
+        if printed_passage is not None:
+            if "printed_passages" not in session:
+                session["printed_passages"] = []
+            session["printed_passages"].append(printed_passage)
+            # Trim printed_passages to last MAX_HISTORY_PAIRS items
+            if len(session["printed_passages"]) > self.MAX_HISTORY_PAIRS:
+                session["printed_passages"] = session["printed_passages"][-self.MAX_HISTORY_PAIRS :]
+
         session["modified"] = True
 
     def _extract_json_from_llm_output(self, raw_llm_output):
@@ -335,11 +345,8 @@ class LLMHandler:
                         "error": f"Bible lookup failed for reference '{passage_reference}'."
                     }, 500
 
-                # Remember that this passage has now been printed
-                session["printed_passages"].append(passage_reference)
-
                 self._update_conversation_history(
-                    session, current_history, user_query, raw_llm_output
+                    session, current_history, user_query, raw_llm_output, printed_passage=passage_reference
                 )
                 return {
                     "response": passage_text,
