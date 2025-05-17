@@ -36,7 +36,7 @@ bible_parser = BibleParser(app.logger)
 
 # Initialize LLMHandler
 llm_handler = LLMHandler(
-    client, app.logger, bible_parser, "deepseek/deepseek-r1-distill-qwen-32b:free"
+    client, app.logger, bible_parser, "deepseek/deepseek-chat-v3-0324:free"
 )
 
 
