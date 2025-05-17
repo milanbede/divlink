@@ -122,7 +122,8 @@
                         })
                         .then(data => {
                             const responseText = data.response || "Received no specific response.";
-                            typeResponse(responseText, outputDiv, () => {
+                            const score = data.score; // Get the score from the response
+                            typeResponse(responseText, outputDiv, score, () => { // Pass score to typeResponse
                                 // This callback runs after typing is complete
                                 outputDiv.appendChild(document.createElement('br'));
                                 commandInput.value = '';
@@ -135,7 +136,8 @@
                         .catch(error => {
                             console.error('Fetch Error:', error);
                             const errorText = `Error: ${escapeHtml(error.message)}`;
-                            typeResponse(errorText, outputDiv, () => {
+                            // Errors don't have a score, or we can pass a default like null/0
+                            typeResponse(errorText, outputDiv, null, () => {
                                 // This callback runs after typing is complete
                                 outputDiv.appendChild(document.createElement('br'));
                                 commandInput.value = '';
@@ -160,9 +162,13 @@
                 }
             });
 
-            function typeResponse(text, container, callback) {
+            function typeResponse(text, container, score, callback) { // Added score parameter
                 const baseResponseElement = document.createElement('div');
-                baseResponseElement.className = 'llm-response-text'; // Add class for styling
+                baseResponseElement.className = 'llm-response-text'; // Default class
+
+                if (score === 20) {
+                    baseResponseElement.classList.add('perfect-score-text'); // Add class for perfect score
+                }
                 container.appendChild(baseResponseElement);
 
                 let currentTargetElement = baseResponseElement; // Element to append to

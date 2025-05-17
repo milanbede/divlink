@@ -551,11 +551,14 @@ Begin."""
                         )
 
                 # Weighted random selection
-                passage_reference = random.choices(
-                    valid_references_for_selection, weights=weights, k=1
-                )[0]
+                # Weighted random selection
+                # random.choices returns a list, so get the first element
+                selected_index = random.choices(range(len(valid_references_for_selection)), weights=weights, k=1)[0]
+                passage_reference = valid_references_for_selection[selected_index]
+                selected_weight = weights[selected_index] # This is the combined score (relevance + helpfulness)
+
                 app.logger.info(
-                    f"Weighted randomly selected reference: '{passage_reference}' from LLM output for query: '{user_query}'. Weights: {weights}, Options: {valid_references_for_selection}"
+                    f"Weighted randomly selected reference: '{passage_reference}' (score: {selected_weight}) from LLM output for query: '{user_query}'. Weights: {weights}, Options: {valid_references_for_selection}"
                 )
 
                 # Successfully got a passage_reference, now parse it and get text
@@ -625,7 +628,7 @@ Begin."""
                         {"role": "assistant", "content": raw_llm_output}
                     )  # Save successful LLM output
                     session.modified = True
-                    return jsonify({"response": passage_text})
+                    return jsonify({"response": passage_text, "score": selected_weight})
 
             except json.JSONDecodeError:
                 app.logger.warn(

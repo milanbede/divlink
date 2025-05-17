@@ -109,6 +109,22 @@ body {
     white-space: pre-line; /* Respects newline characters from the text content */
 }
 
+.perfect-score-text {
+    color: #FFFF00; /* CRT Yellow */
+    text-shadow: 0 0 5px #FFFF00, 0 0 10px #FFD700; /* Yellow glow, maybe a touch of gold */
+}
+/* Ensure divine-name within perfect-score-text still gets its specific glow */
+.perfect-score-text .divine-name {
+    /* Inherits yellow color from parent, or can be set explicitly */
+    /* color: #FFFF99; */ /* Lighter yellow for divine name if desired */
+    font-weight: bold;
+     text-shadow: 0 0 5px #ffffff, /* Inner white glow */
+                 0 0 10px #ffffcc, /* Light yellow halo */
+                 0 0 18px #FFFF00, /* Main yellow glow */
+                 0 0 25px #FFD700;  /* Outer gold/darker yellow glow */
+}
+
+
 .divine-name {
     font-weight: bold; /* Make it bolder */
     /* Stronger glow than default text-shadow */
