@@ -2,7 +2,7 @@ import os
 import requests
 import json
 import re  # For parsing Bible references
-import random # For selecting a random reference
+import random  # For selecting a random reference
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 
@@ -242,7 +242,11 @@ Begin."""
                 parsed_json = json.loads(raw_llm_output)
                 references_list = parsed_json.get("references")
 
-                if not references_list or not isinstance(references_list, list) or not all(isinstance(ref, str) for ref in references_list):
+                if (
+                    not references_list
+                    or not isinstance(references_list, list)
+                    or not all(isinstance(ref, str) for ref in references_list)
+                ):
                     app.logger.warn(
                         f"LLM response JSON did not contain a valid 'references' list of strings on attempt {attempt + 1}. Query: {user_query}. Raw output: {raw_llm_output}"
                     )
@@ -254,13 +258,13 @@ Begin."""
                                 "response": "Could not extract a valid list of passage references from LLM after multiple attempts. Please try again."
                             }
                         )
-                
-                if not references_list: # Empty list of references
+
+                if not references_list:  # Empty list of references
                     app.logger.warn(
                         f"LLM returned an empty list of references on attempt {attempt + 1}. Query: {user_query}. Raw output: {raw_llm_output}"
                     )
                     if attempt < max_retries - 1:
-                        continue # Retry
+                        continue  # Retry
                     else:
                         return jsonify(
                             {
@@ -270,8 +274,9 @@ Begin."""
 
                 # Randomly select one reference from the list
                 passage_reference = random.choice(references_list)
-                app.logger.info(f"Randomly selected reference: '{passage_reference}' from LLM output: {references_list}")
-
+                app.logger.info(
+                    f"Randomly selected reference: '{passage_reference}' from LLM output: {references_list}"
+                )
 
                 # Successfully got a passage_reference, now parse it and get text
                 parsed_ref = parse_bible_reference(passage_reference)
