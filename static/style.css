@@ -68,6 +68,7 @@ body {
     outline: none;
     flex-grow: 1;
     padding: 0;
+    text-shadow: 0 0 4px #00ff00; /* Add green glow to input text */
     caret-color: transparent; /* Hide the default browser caret */
 }
 
