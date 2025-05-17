@@ -118,6 +118,22 @@ Begin."""
                     raw_llm_output,
                     0,
                 )
+        
+        if extracted_json_str:
+            # Replace common problematic Unicode characters that might break JSON parsing.
+            # Non-breaking space (U+00A0) -> regular space (U+0020)
+            extracted_json_str = extracted_json_str.replace('\u00A0', ' ')
+            # Zero-width space (U+200B) -> remove
+            extracted_json_str = extracted_json_str.replace('\u200b', '')
+            # Byte Order Mark (U+FEFF) -> remove (though strip() might get it at ends)
+            extracted_json_str = extracted_json_str.replace('\ufeff', '')
+            # Em-dash (U+2013 / U+2014) -> hyphen (U+002D)
+            extracted_json_str = extracted_json_str.replace("–", "-")  # Common em-dash (U+2013)
+            extracted_json_str = extracted_json_str.replace("—", "-")  # Less common em-dash (U+2014)
+
+            # Strip standard whitespace again in case replacements or original string had them at ends.
+            extracted_json_str = extracted_json_str.strip()
+            
         return extracted_json_str
 
     def _parse_llm_references_data(self, references_data_list):
