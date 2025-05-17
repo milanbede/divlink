@@ -1,13 +1,12 @@
 import unittest
 from unittest.mock import MagicMock
 import os
-import time # Added for latency measurement
+import time  # Added for latency measurement
 from dotenv import load_dotenv
 from openai import OpenAI
 from tqdm import tqdm
-import matplotlib.pyplot as plt # Added for radar chart
-import numpy as np # Added for radar chart
-from math import pi # Added for radar chart
+import matplotlib.pyplot as plt  # Added for radar chart
+import numpy as np  # Added for radar chart
 
 from llm_handler import LLMHandler
 from bible_parser import BibleParser
@@ -89,7 +88,7 @@ class TestFaithBenchIntegration(unittest.TestCase):
                 "No FaithBench test cases were loaded from category files. Skipping integration test."
             )
 
-        overall_model_metrics = {} # Stores metrics for all models
+        overall_model_metrics = {}  # Stores metrics for all models
 
         for model_name in self.MODELS_TO_TEST:
             self.mock_logger.info(f"\n--- Testing Model: {model_name} ---")
@@ -104,15 +103,23 @@ class TestFaithBenchIntegration(unittest.TestCase):
             model_total_latency = 0.0
             model_prompt_count_for_latency = 0
             model_results_summary_lines = []
-            
-            category_success_counts = {category: 0 for category in all_test_data_sources.keys()}
-            category_total_counts = {category: 0 for category in all_test_data_sources.keys()}
 
-            for i, case in enumerate(tqdm(all_test_cases, desc=f"FaithBench ({model_name})")):
-                with self.subTest(model=model_name, category=case["category"], prompt=case["prompt"]):
-                    current_category = case['category']
+            category_success_counts = {
+                category: 0 for category in all_test_data_sources.keys()
+            }
+            category_total_counts = {
+                category: 0 for category in all_test_data_sources.keys()
+            }
+
+            for i, case in enumerate(
+                tqdm(all_test_cases, desc=f"FaithBench ({model_name})")
+            ):
+                with self.subTest(
+                    model=model_name, category=case["category"], prompt=case["prompt"]
+                ):
+                    current_category = case["category"]
                     category_total_counts[current_category] += 1
-                    
+
                     mock_session = {}  # Simulate Flask session
 
                     self.mock_logger.info(
@@ -147,15 +154,23 @@ class TestFaithBenchIntegration(unittest.TestCase):
                     is_expected_reference_found = False
                     matched_reference = None
                     for expected_ref in case["expected_references"]:
-                        parsed_expected_ref_obj = self.bible_parser.parse_reference(expected_ref)
+                        parsed_expected_ref_obj = self.bible_parser.parse_reference(
+                            expected_ref
+                        )
                         canonical_expected_ref_header = ""
                         if parsed_expected_ref_obj:
-                            passage_or_error = self.bible_parser.get_passage(parsed_expected_ref_obj)
-                            if not (passage_or_error.startswith("Error:") or 
-                                    passage_or_error.startswith("Book '") or 
-                                    passage_or_error.startswith("Chapter ") or 
-                                    passage_or_error.startswith("No verses found")):
-                                canonical_expected_ref_header = passage_or_error.splitlines()[0].strip()
+                            passage_or_error = self.bible_parser.get_passage(
+                                parsed_expected_ref_obj
+                            )
+                            if not (
+                                passage_or_error.startswith("Error:")
+                                or passage_or_error.startswith("Book '")
+                                or passage_or_error.startswith("Chapter ")
+                                or passage_or_error.startswith("No verses found")
+                            ):
+                                canonical_expected_ref_header = (
+                                    passage_or_error.splitlines()[0].strip()
+                                )
                             else:
                                 self.mock_logger.warning(
                                     f"Model '{model_name}': Could not form canonical header for expected_ref '{expected_ref}'. Error: {passage_or_error}"
@@ -165,16 +180,19 @@ class TestFaithBenchIntegration(unittest.TestCase):
                                     matched_reference = expected_ref
                                     break
                                 continue
-                        
+
                         if returned_reference_line == canonical_expected_ref_header:
                             is_expected_reference_found = True
                             matched_reference = expected_ref
                             break
-                        elif not canonical_expected_ref_header and returned_reference_line == expected_ref.strip():
+                        elif (
+                            not canonical_expected_ref_header
+                            and returned_reference_line == expected_ref.strip()
+                        ):
                             is_expected_reference_found = True
                             matched_reference = expected_ref
                             break
-                    
+
                     if is_expected_reference_found:
                         model_specific_success_count += 1
                         category_success_counts[current_category] += 1
@@ -200,15 +218,25 @@ class TestFaithBenchIntegration(unittest.TestCase):
                         f"LLMHandler returned passage starting with: '{returned_reference_line}'\n"
                         f"Full passage returned (first 200 chars): '{passage_text[:200]}...'",
                     )
-            
+
             # After all prompts for the current model
-            avg_latency = model_total_latency / model_prompt_count_for_latency if model_prompt_count_for_latency > 0 else 0
-            overall_success_rate_model = (model_specific_success_count / len(all_test_cases)) * 100 if len(all_test_cases) > 0 else 0
-            
+            avg_latency = (
+                model_total_latency / model_prompt_count_for_latency
+                if model_prompt_count_for_latency > 0
+                else 0
+            )
+            overall_success_rate_model = (
+                (model_specific_success_count / len(all_test_cases)) * 100
+                if len(all_test_cases) > 0
+                else 0
+            )
+
             category_success_rates_model = {}
             for cat, count in category_success_counts.items():
                 total_in_cat = category_total_counts[cat]
-                category_success_rates_model[cat] = (count / total_in_cat) * 100 if total_in_cat > 0 else 0
+                category_success_rates_model[cat] = (
+                    (count / total_in_cat) * 100 if total_in_cat > 0 else 0
+                )
 
             overall_model_metrics[model_name] = {
                 "overall_success_rate": overall_success_rate_model,
@@ -217,13 +245,15 @@ class TestFaithBenchIntegration(unittest.TestCase):
                 "total_prompts_tested": len(all_test_cases),
                 "total_successful": model_specific_success_count,
                 "detailed_results": model_results_summary_lines,
-                "cost_usd": "N/A (Cost calculation not yet implemented)" # Placeholder for cost
+                "cost_usd": "N/A (Cost calculation not yet implemented)",  # Placeholder for cost
             }
 
             print(f"\n--- Summary for Model: {model_name} ---")
             for res_line in model_results_summary_lines:
                 print(res_line)
-            print(f"Overall Success Rate: {model_specific_success_count}/{len(all_test_cases)} ({overall_success_rate_model:.2f}%)")
+            print(
+                f"Overall Success Rate: {model_specific_success_count}/{len(all_test_cases)} ({overall_success_rate_model:.2f}%)"
+            )
             print(f"Average Latency: {avg_latency:.4f} seconds per prompt")
             print("Category Success Rates:")
             for cat, rate in category_success_rates_model.items():
@@ -239,21 +269,26 @@ class TestFaithBenchIntegration(unittest.TestCase):
         print("|" + "-" * (len(header) - 2) + "|")
         for model_name_key, metrics in overall_model_metrics.items():
             # Truncate or pad model name for table display
-            display_model_name = (model_name_key[:36] + '..') if len(model_name_key) > 38 else model_name_key.ljust(38)
+            display_model_name = (
+                (model_name_key[:36] + "..")
+                if len(model_name_key) > 38
+                else model_name_key.ljust(38)
+            )
             print(
                 f"| {display_model_name} | "
                 f"{metrics['overall_success_rate']:>19.2f}% | "
                 f"{metrics['avg_latency_sec']:>21.4f} | "
                 f"{metrics['cost_usd']:>14} |"
             )
-        print("----------------------------------------------------------------------------------------------------------\n")
+        print(
+            "----------------------------------------------------------------------------------------------------------\n"
+        )
 
         categories_for_chart = list(all_test_data_sources.keys())
-        if categories_for_chart: # Ensure there are categories before trying to plot
-             self._generate_radar_chart(overall_model_metrics, categories_for_chart)
+        if categories_for_chart:  # Ensure there are categories before trying to plot
+            self._generate_radar_chart(overall_model_metrics, categories_for_chart)
         else:
             self.mock_logger.warning("No categories found for radar chart generation.")
-
 
     def _generate_radar_chart(self, model_metrics, categories):
         num_vars = len(categories)
@@ -268,30 +303,36 @@ class TestFaithBenchIntegration(unittest.TestCase):
 
         # Plot each model's data
         for model_name, metrics_data in model_metrics.items():
-            values = [metrics_data['category_success_rates'].get(cat, 0) for cat in categories]
-            values += values[:1] # Complete the loop for values
-            ax.plot(angles, values, linewidth=2, linestyle='solid', label=model_name)
+            values = [
+                metrics_data["category_success_rates"].get(cat, 0) for cat in categories
+            ]
+            values += values[:1]  # Complete the loop for values
+            ax.plot(angles, values, linewidth=2, linestyle="solid", label=model_name)
             ax.fill(angles, values, alpha=0.25)
 
-        ax.set_yticks(np.arange(0, 101, 20)) # Y-axis ticks from 0 to 100, every 20%
-        ax.set_ylim(0, 100) # Y-axis limit
+        ax.set_yticks(np.arange(0, 101, 20))  # Y-axis ticks from 0 to 100, every 20%
+        ax.set_ylim(0, 100)  # Y-axis limit
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels(categories, fontsize=10)
-        
+
         # Move title and legend
-        plt.title('Model Performance by Category (Success Rate %)', size=16, y=1.12)
-        ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.15), ncol=min(3, len(model_metrics))) # Adjust legend position
+        plt.title("Model Performance by Category (Success Rate %)", size=16, y=1.12)
+        ax.legend(
+            loc="lower center",
+            bbox_to_anchor=(0.5, -0.15),
+            ncol=min(3, len(model_metrics)),
+        )  # Adjust legend position
 
         chart_filename = "faithbench_radar_chart.png"
         try:
-            plt.tight_layout(pad=2.0) # Add padding
+            plt.tight_layout(pad=2.0)  # Add padding
             plt.savefig(chart_filename)
             self.mock_logger.info(f"Radar chart saved to {chart_filename}")
             print(f"Radar chart saved to {chart_filename}")
         except Exception as e:
             self.mock_logger.error(f"Failed to save radar chart: {e}")
             print(f"Failed to save radar chart: {e}")
-        plt.close(fig) # Close the figure to free memory
+        plt.close(fig)  # Close the figure to free memory
 
 
 if __name__ == "__main__":
