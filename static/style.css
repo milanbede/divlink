@@ -12,50 +12,56 @@
     --scanline-rgba: rgba(0, 255, 0, 0.05);
 
     --perfect-score-color: #e69c00; /* New Yellow */
-    --perfect-score-glow: 0 0 5px #e69c00, 0 0 10px #c98a00; /* Adjusted yellow glow (darker shade for secondary) */
+    --perfect-score-glow: 0 0 5px #e69c00, 0 0 10px #c98a00; /* Adjusted yellow glow */
 
     --divine-name-font-weight: bold;
     --divine-name-text-shadow: 0 0 7px #88ff88, 0 0 14px #00ff00;
-    /* --divine-name-color: #ccffcc; /* Optional: for divine name text itself */
+    /* Optional: you can uncomment and choose a custom color for divine names in normal text */
+    /* --divine-name-color: #ccffcc; */
 
-    /* For .perfect-score-text .divine-name */
-    --divine-name-perfect-text-shadow: 0 0 5px #ffffff,
-                                     0 0 10px #fff2cc, /* Light yellow halo (derived from e69c00) */
-                                     0 0 18px #e69c00, /* Main new yellow glow */
-                                     0 0 25px #c98a00;  /* Outer darker yellow glow */
-    /* --divine-name-perfect-color: inherit; /* Or specific color if needed, inherits from .perfect-score-text by default */
+    /* Bright orange for LORD in perfect‐score passages */
+    --divine-name-perfect-color: #ffb84d;
+
+    /* Glow around divine names in perfect‐score passages */
+    --divine-name-perfect-text-shadow:
+          0 0 5px #ffffff,
+          0 0 10px #ffecb3,
+          0 0 18px var(--perfect-score-color),
+          0 0 25px var(--divine-name-perfect-color);
 }
 
 @media (prefers-color-scheme: light) {
     :root {
         --bg-color: #fdfdfd;
         --text-color: #2b2b2b;
-        --text-glow: 0 0 2px rgba(43, 43, 43, 0.2); /* Subtle dark glow */
-        --username-color: #1e1e1e; /* Slightly darker for username */
+        --text-glow: 0 0 2px rgba(43, 43, 43, 0.2);
+        --username-color: #1e1e1e;
         --username-glow: 0 0 2px rgba(30, 30, 30, 0.2);
         --prompt-color: #2b2b2b;
         --prompt-glow: 0 0 2px rgba(43, 43, 43, 0.2);
         --input-color: #2b2b2b;
         --input-glow: 0 0 2px rgba(43, 43, 43, 0.2);
         --cursor-bg-color: #2b2b2b;
-        --scanline-rgba: rgba(43, 43, 43, 0.07); /* Darker, more visible scanlines on light */
+        --scanline-rgba: rgba(43, 43, 43, 0.07);
 
-        --perfect-score-color: #e69c00; /* Same New Yellow */
-        --perfect-score-glow: 0 0 5px #e69c00, 0 0 10px #c98a00; /* Same yellow glow */
+        --perfect-score-color: #e69c00;
+        --perfect-score-glow: 0 0 5px #e69c00, 0 0 10px #c98a00;
 
         --divine-name-font-weight: bold;
-        --divine-name-text-shadow: 0 0 1px rgba(0,0,0,0.2); /* Subtle dark shadow for divine name */
-        /* --divine-name-color: #1a1a1a; /* Optional */
+        --divine-name-text-shadow: 0 0 1px rgba(0,0,0,0.2);
 
-        --divine-name-perfect-text-shadow: 0 0 1px rgba(0,0,0,0.3), 0 0 3px #e69c00; /* Subtle dark outline and main yellow glow */
-        /* --divine-name-perfect-color: inherit; */
+        --divine-name-perfect-color: #ffb84d;
+        --divine-name-perfect-text-shadow:
+              0 0 1px rgba(0,0,0,0.3),
+              0 0 3px var(--perfect-score-color),
+              0 0 5px var(--divine-name-perfect-color);
     }
 }
 
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
-    font-family: 'Lucida Console', Monaco, 'Courier New', monospace; /* Classic terminal font */
+    font-family: 'Lucida Console', Monaco, 'Courier New', monospace;
     margin: 0;
     padding: 20px;
     font-size: 16px;
@@ -63,13 +69,10 @@ body {
 }
 
 #terminal {
-    /* background-color: #050505; */ /* Very dark grey, almost black - REMOVED to inherit body background */
-    /* border: 1px solid #00ff00; */ /* Green border - REMOVED */
-    padding: 0; /* REMOVED padding, body padding will provide spacing */
-    height: calc(100vh - 40px); /* Full viewport height minus body padding (20px top + 20px bottom) */
+    padding: 0;
+    height: calc(100vh - 40px);
     overflow-y: auto;
-    /* box-shadow: 0 0 15px #00ff00, inset 0 0 10px rgba(0, 128, 0, 0.7); */ /* REMOVED window effect */
-    position: relative; /* For scanlines pseudo-element */
+    position: relative;
 }
 
 /* Scanline effect */
@@ -80,7 +83,6 @@ body {
     left: 20px;
     right: 20px;
     bottom: 20px;
-    /* Use a CSS variable for the background-position-y, which will be updated by JS */
     background: repeating-linear-gradient(
         0deg,
         var(--scanline-rgba),
@@ -88,30 +90,29 @@ body {
         transparent 1px,
         transparent 3px
     );
-    /* background-position-y is removed to keep scanlines static relative to #terminal */
-    pointer-events: none; /* So it doesn't interfere with clicks */
-    z-index: 1; /* Behind content */
+    pointer-events: none;
+    z-index: 1;
 }
 
 #output div {
     margin-bottom: 5px;
     word-wrap: break-word;
     text-shadow: var(--text-glow);
-    position: relative; /* To ensure it's above scanlines */
+    position: relative;
     z-index: 2;
 }
 
 .prompt-line {
     display: flex;
     align-items: center;
-    position: relative; /* To ensure it's above scanlines */
+    position: relative;
     z-index: 2;
 }
 
 .username, .username-echo {
     color: var(--username-color);
     text-shadow: var(--username-glow);
-    margin-right: 4px; /* Space between username and prompt symbol */
+    margin-right: 4px;
     user-select: none;
 }
 
@@ -132,31 +133,23 @@ body {
     flex-grow: 1;
     padding: 0;
     text-shadow: var(--input-glow);
-    caret-color: transparent; /* Hide the default browser caret */
+    caret-color: transparent;
 }
 
 #customCursor {
     position: absolute;
     display: inline-block;
-    width: 1ch; /* Width of one character */
+    width: 1ch;
     background-color: var(--cursor-bg-color);
-    pointer-events: none; /* So it doesn't interfere with input field clicks */
-    z-index: 3; /* Above other prompt-line content if needed */
-    visibility: hidden; /* Initially hidden, JS will manage visibility */
+    pointer-events: none;
+    z-index: 3;
+    visibility: hidden;
     animation: blinkCustomCursor 1s step-end infinite;
 }
 
 @keyframes blinkCustomCursor {
-    0%, 100% { background-color: var(--cursor-bg-color); } /* Visible */
-    50% { background-color: transparent; }    /* Invisible */
-}
-
-/* Old blinkCursor keyframes are no longer needed */
-
-#commandInput:focus {
-    /* The custom cursor now serves as the focus indicator.
-       If you want an additional outline on focus, you can add it here.
-       e.g., outline: 1px dashed rgba(0, 255, 0, 0.5); */
+    0%, 100% { background-color: var(--cursor-bg-color); }
+    50% { background-color: transparent; }
 }
 
 #textMeasurer {
@@ -164,41 +157,38 @@ body {
     visibility: hidden;
     height: auto;
     width: auto;
-    white-space: pre; /* Crucial for measuring spaces like in an input */
-    /* Styles like font, letter-spacing, etc., will be copied dynamically via JS */
+    white-space: pre;
 }
 
 .llm-response-text {
-    white-space: pre-line; /* Respects newline characters from the text content */
+    white-space: pre-line;
 }
 
 .perfect-score-text {
     color: var(--perfect-score-color);
     text-shadow: var(--perfect-score-glow);
 }
-/* Ensure divine-name within perfect-score-text still gets its specific glow */
-.perfect-score-text .divine-name {
-    /* color: var(--divine-name-perfect-color); /* Inherits from .perfect-score-text by default */
-    font-weight: var(--divine-name-font-weight); /* Consistent font weight */
-    text-shadow: var(--divine-name-perfect-text-shadow);
-}
 
-
+/* Divine name in normal responses */
 .divine-name {
     font-weight: var(--divine-name-font-weight);
     text-shadow: var(--divine-name-text-shadow);
-    /* color: var(--divine-name-color); /* Optional: if you want to control its color directly */
+}
+
+/* Divine name in perfect‐score responses: bright orange + matching glow */
+.perfect-score-text .divine-name {
+    font-weight: var(--divine-name-font-weight);
+    color: var(--divine-name-perfect-color);
+    text-shadow: var(--divine-name-perfect-text-shadow);
 }
 
 .echoed-command-line {
     display: flex;
     align-items: center;
-    /* Inherits text-shadow, font, color from parent #output div or body */
 }
 
 .echoed-command-text {
-    padding: 0; /* Match #commandInput's padding */
-    /* font-family, font-size, color, text-shadow are inherited */
-    white-space: pre-wrap; /* Preserve spaces and wrap text like an input might appear to */
-    word-wrap: break-word; /* Ensure long words break if necessary */
+    padding: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
 }
