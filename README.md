@@ -9,19 +9,18 @@ Divine Link is your personalized gateway to Scripture, crafted to bring solace t
 - Random Psalm feature: Draw daily inspiration from the timeless poetry of the Psalms.
 - Lightweight, hassle-free experience: No installation—just open your browser and begin your journey.
 
-Live Demo
-https://bible.bedeai.com
+### [Live Demo](https://bible.bedeai.com)
 
-How It Works
+## How It Works
 1. Pour out your heart: Type in your thoughts, struggles, or questions.
 2. Receive guidance: Our AI-powered guide connects you to the most meaningful verses.
 3. Reflect and grow: Meditate on the passages that resonate with you.
 
-Get Started Now
+## Get Started Now
 Visit the Live Demo, share what’s on your mind, and let Divine Link illuminate your path.
 
-Contribute & Develop
+## Contribute & Develop
 For setup instructions, contribution guidelines, and detailed developer notes, see DEVELOPMENT.md.
 
-License
+## License
 This project is licensed under the terms described in LICENSE.txt. King James Version (KJV) texts included here are in the public domain.
