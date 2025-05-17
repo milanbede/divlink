@@ -346,8 +346,10 @@
                      .replace(/'/g, "&#039;");
             }
 
+            // Only focus input when there’s no active selection on terminal
             document.getElementById('terminal').addEventListener('click', (event) => {
-                if (event.target !== commandInput) {
+                const sel = window.getSelection();
+                if (sel.isCollapsed && event.target !== commandInput) {
                     commandInput.focus();
                 }
             });
