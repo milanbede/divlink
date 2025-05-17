@@ -14,7 +14,7 @@
             <div>&nbsp;</div>
         </div>
         <div class="prompt-line">
-            <span class="prompt">&gt;</span>
+            <span class="username">seeker</span><span class="prompt">&gt;</span>
             <input type="text" id="commandInput" autofocus><span id="customCursor"></span>
         </div>
     </div>
@@ -95,7 +95,7 @@
                         // Display command in output
                         const commandElement = document.createElement('div');
                         commandElement.className = 'echoed-command-line'; // Add class for flex styling
-                        commandElement.innerHTML = `<span class="prompt-echo">&gt;</span><span class="echoed-command-text">${escapeHtml(command)}</span>`;
+                        commandElement.innerHTML = `<span class="username-echo">seeker</span><span class="prompt-echo">&gt;</span><span class="echoed-command-text">${escapeHtml(command)}</span>`;
                         outputDiv.appendChild(commandElement);
 
                         // Hide the entire prompt line during response typing
@@ -150,7 +150,8 @@
                     } else {
                         // Handle empty command: echo an empty prompt and add a line break
                         const commandElement = document.createElement('div');
-                        commandElement.innerHTML = `<span class="prompt-echo">&gt;</span>&nbsp;`; // Echo empty prompt with a non-breaking space
+                        commandElement.className = 'echoed-command-line'; // Also style empty command line
+                        commandElement.innerHTML = `<span class="username-echo">seeker</span><span class="prompt-echo">&gt;</span>&nbsp;`; // Echo empty prompt with a non-breaking space
                         outputDiv.appendChild(commandElement);
                         outputDiv.appendChild(document.createElement('br')); // Add a line break
 

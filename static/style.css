@@ -52,6 +52,13 @@ body {
     z-index: 2;
 }
 
+.username, .username-echo {
+    color: #00cc00; /* Slightly darker green for username, or choose another color */
+    text-shadow: 0 0 4px #00cc00;
+    margin-right: 4px; /* Space between username and prompt symbol */
+    user-select: none;
+}
+
 .prompt, .prompt-echo {
     color: #00ff00; /* Green prompt */
     text-shadow: 0 0 4px #00ff00; /* Matching glow for prompt */
