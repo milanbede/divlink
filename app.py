@@ -1,6 +1,6 @@
 import os
 import requests
-import json # Moved from inside the function
+import json  # Moved from inside the function
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 
@@ -62,10 +62,12 @@ def query_llm():
                     f"LLM returned empty content on attempt {attempt + 1} for query: {user_query}. Raw response: {data}"
                 )
                 if attempt < max_retries - 1:
-                    continue # Retry
+                    continue  # Retry
                 else:
                     return jsonify(
-                        {"response": "LLM returned an empty response after multiple attempts. Please try rephrasing."}
+                        {
+                            "response": "LLM returned an empty response after multiple attempts. Please try rephrasing."
+                        }
                     )
 
             try:
@@ -78,22 +80,22 @@ def query_llm():
                         f"LLM response JSON did not contain a valid 'reference' string on attempt {attempt + 1}. Query: {user_query}. Raw output: {raw_llm_output}"
                     )
                     if attempt < max_retries - 1:
-                        continue # Retry
+                        continue  # Retry
                     else:
                         return jsonify(
                             {
                                 "response": "Could not extract a valid passage reference from LLM after multiple attempts. Please try again."
                             }
                         )
-                
-                return jsonify({"response": passage_reference}) # Success
+
+                return jsonify({"response": passage_reference})  # Success
 
             except json.JSONDecodeError:
                 app.logger.warn(
                     f"LLM response was not valid JSON on attempt {attempt + 1}. Query: {user_query}. Raw output: {raw_llm_output}"
                 )
                 if attempt < max_retries - 1:
-                    continue # Retry
+                    continue  # Retry
                 else:
                     return jsonify(
                         {
@@ -108,7 +110,9 @@ def query_llm():
             error_message = "Error communicating with the LLM service."
             try:
                 err_details = (
-                    api_response.json().get("error", {}).get("message", api_response.text)
+                    api_response.json()
+                    .get("error", {})
+                    .get("message", api_response.text)
                 )
                 error_message = f"LLM service error: {err_details}"
             except ValueError:  # if response is not JSON
@@ -133,10 +137,17 @@ def query_llm():
                 ),
                 500,
             )
-    
+
     # This part should ideally not be reached if logic above is correct,
     # but as a fallback if loop finishes without returning:
-    return jsonify({"error": "Failed to get a valid response from LLM after multiple retries."}), 500
+    return (
+        jsonify(
+            {"error": "Failed to get a valid response from LLM after multiple retries."}
+        ),
+        500,
+    )
+
+
 # The old try block content is now inside the loop in the REPLACE section above.
 # This SEARCH block is to remove the old structure.
 # The outer exception handlers (HTTPError, RequestException, etc.) are now part of the loop structure.
