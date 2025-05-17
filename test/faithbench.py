@@ -64,30 +64,28 @@ class TestFaithBenchIntegration(unittest.TestCase):
             "vanity": VANITY_TEST_CASES,
         }
 
-        ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY = []
+        all_test_cases = []
         for category, cases_list in all_test_data_sources.items():
             if cases_list:  # Ensure the list is not None or empty
                 for case_content in cases_list:
                     case_copy = case_content.copy()
                     case_copy["category"] = category
-                    ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY.append(case_copy)
+                    all_test_cases.append(case_copy)
             else:
                 self.mock_logger.warning(
                     f"No test cases found for category: {category}"
                 )
 
-        if not ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY:
+        if not all_test_cases:
             self.skipTest(
                 "No FaithBench test cases were loaded from category files. Skipping integration test."
             )
 
         success_count = 0
-        total_cases = len(ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY)
+        total_cases = len(all_test_cases)
         results_summary = []
 
-        for i, case in enumerate(
-            tqdm(ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY, desc="FaithBench Progress")
-        ):
+        for i, case in enumerate(tqdm(all_test_cases, desc="FaithBench Progress")):
             with self.subTest(category=case["category"], prompt=case["prompt"]):
                 mock_session = {}  # Simulate Flask session for conversation history
 
