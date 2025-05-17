@@ -73,5 +73,5 @@ See `requirements.txt` for specific versions.
 
 ## License
 
-The source code of this project is licensed under the terms described in `LICENSE.txt`.  
+The source code of this project is licensed under the terms described in `LICENSE.txt`.
 The King James Version (KJV) Bible texts included in the `data/books` directory are in the public domain and are not subject to the terms of this license.
