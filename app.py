@@ -1,6 +1,5 @@
 import os
-
-# import requests # No longer needed
+import requests # Re-adding for drand
 import json
 import re  # For parsing Bible references
 import random  # For selecting a random reference
@@ -31,6 +30,29 @@ else:
         "OPENROUTER_API_KEY not found in .env file. LLM functionality will be disabled."
     )
     client = None  # Explicitly set client to None if key is missing
+
+def seed_random_from_drand():
+    """Fetches randomness from drand and seeds the random number generator."""
+    try:
+        # Using Cloudflare's drand endpoint (League of Entropy)
+        response = requests.get("https://drand.cloudflare.com/public/latest", timeout=5)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        data = response.json()
+        randomness_hex = data.get("randomness")
+        if randomness_hex:
+            # Convert hex string to an integer for seeding
+            seed_value = int(randomness_hex, 16)
+            random.seed(seed_value)
+            app.logger.info(f"Successfully seeded random number generator from drand. Round: {data.get('round')}")
+        else:
+            app.logger.error("Drand response did not contain 'randomness' field. Using default random seed.")
+    except requests.exceptions.RequestException as e:
+        app.logger.error(f"Could not fetch seed from drand: {e}. Using default random seed.")
+    except (ValueError, TypeError, KeyError) as e:
+        app.logger.error(f"Error processing drand response: {e}. Using default random seed.")
+
+# Seed the random number generator at application startup
+seed_random_from_drand()
 
 # Load Bible data and create a lookup map
 BIBLE_DATA = []
