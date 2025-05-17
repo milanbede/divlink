@@ -292,37 +292,43 @@ def scrape_chapter_page(chapter_url):
 
     # Find next chapter link
     next_chapter_path = None
-    
+
     # Attempt 1: Find by rel="next"
     next_link_tag = soup.find("a", rel="next")
 
     # Attempt 2: If not found by rel="next", try finding by common link texts ('>' or '►')
     if not next_link_tag:
-        possible_next_texts = ['>', '►'] # Common symbols for "next"
+        possible_next_texts = [">", "►"]  # Common symbols for "next"
         all_a_tags = soup.find_all("a", href=True)
         for link_tag_candidate in all_a_tags:
             link_text = link_tag_candidate.get_text(strip=True)
             if link_text in possible_next_texts:
-                href_value = link_tag_candidate['href']
+                href_value = link_tag_candidate["href"]
                 # Ensure it's a relative .htm path and matches chapter pattern (e.g., XYZ01.htm)
-                if href_value.endswith('.htm') and \
-                   not href_value.startswith(('http://', 'https://', '#')) and \
-                   re.match(r"^[A-Z0-9]{2,5}\d{2,3}\.htm$", href_value, re.IGNORECASE):
+                if (
+                    href_value.endswith(".htm")
+                    and not href_value.startswith(("http://", "https://", "#"))
+                    and re.match(
+                        r"^[A-Z0-9]{2,5}\d{2,3}\.htm$", href_value, re.IGNORECASE
+                    )
+                ):
                     next_link_tag = link_tag_candidate
-                    break # Found a plausible candidate, use the first one that matches
+                    break  # Found a plausible candidate, use the first one that matches
 
     # Process the found link (if any) by validating its href
     if next_link_tag and next_link_tag.has_attr("href"):
         href_path = next_link_tag["href"]
         # Final validation of the href_path from the chosen link tag
-        if href_path.endswith(".htm") and \
-           not href_path.startswith(('http://', 'https://', '#')) and \
-           re.match(r"^[A-Z0-9]{2,5}\d{2,3}\.htm$", href_path, re.IGNORECASE):
+        if (
+            href_path.endswith(".htm")
+            and not href_path.startswith(("http://", "https://", "#"))
+            and re.match(r"^[A-Z0-9]{2,5}\d{2,3}\.htm$", href_path, re.IGNORECASE)
+        ):
             next_chapter_path = href_path
         # else:
-            # This implies that the link found (either by rel="next" or by text)
-            # didn't pass the final validation for its href.
-            # print(f"Candidate next link href '{href_path}' from {chapter_url} did not meet criteria.")
+        # This implies that the link found (either by rel="next" or by text)
+        # didn't pass the final validation for its href.
+        # print(f"Candidate next link href '{href_path}' from {chapter_url} did not meet criteria.")
 
     if not verses:
         print(
