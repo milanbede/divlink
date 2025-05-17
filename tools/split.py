@@ -4,6 +4,7 @@ import os
 SOURCE_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "en_kjv.json")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "books")
 
+
 def split_bible_into_books():
     """
     Reads the main Bible JSON file and splits it into individual JSON files per book.
@@ -46,6 +47,7 @@ def split_bible_into_books():
             print(f"Error writing file {output_file_path}. {e}")
         except Exception as e:
             print(f"An unexpected error occurred while writing {output_file_path}: {e}")
+
 
 if __name__ == "__main__":
     split_bible_into_books()
