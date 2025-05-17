@@ -350,12 +350,14 @@
                         }
 
                         i += consumedLength;
-                        ensureScrolling(); // Scroll as text is typed
+                        // Directly scroll to the bottom after each character.
+                        // This ensures scrolling happens during typing, though it won't be the previous custom animation.
+                        outputDiv.scrollTop = outputDiv.scrollHeight;
                         setTimeout(typeChar, typingSpeed);
                     } else {
                         // Typing finished
                         if (callback) {
-                            callback();
+                            callback(); // The callback may also call ensureScrolling for a final adjustment.
                         }
                     }
                 }
