@@ -736,5 +736,51 @@ Begin."""
 # This SEARCH block is to remove the old structure.
 # The outer exception handlers (HTTPError, RequestException, etc.) are now part of the loop structure.
 
+
+@app.route("/random_psalm", methods=["GET"])
+def random_psalm():
+    if not BIBLE_DATA or not BOOK_MAP:
+        app.logger.error("Bible data not loaded, cannot fetch random Psalm.")
+        return jsonify({"error": "Bible data not available."}), 500
+
+    psalms_book_key = "psalms"
+    psalms_book_index = BOOK_MAP.get(psalms_book_key)
+
+    if psalms_book_index is None:
+        app.logger.error(f"Book '{psalms_book_key}' not found in BOOK_MAP.")
+        return jsonify({"error": "Book of Psalms not found."}), 500
+
+    psalms_book_data = BIBLE_DATA[psalms_book_index]
+    num_chapters_in_psalms = len(psalms_book_data["chapters"])
+
+    if num_chapters_in_psalms == 0:
+        app.logger.error("Book of Psalms has no chapters listed.")
+        return jsonify({"error": "No Psalms available."}), 500
+
+    random_chapter_num = random.randint(1, num_chapters_in_psalms)
+
+    parsed_ref = {
+        "book_name": psalms_book_data["name"],  # Use the proper name e.g. "Psalms"
+        "chapter": random_chapter_num,
+        "start_verse": None,  # For the whole chapter
+        "end_verse": None,
+    }
+
+    passage_text = get_passage_from_json(parsed_ref)
+
+    # Check if get_passage_from_json returned an error message
+    # (it shouldn't with this controlled input, but good practice)
+    if not passage_text or passage_text.startswith("Error:") or passage_text.startswith("Book '") or passage_text.startswith("Chapter ") or passage_text.startswith("No verses found"):
+        app.logger.error(f"Failed to get passage for random Psalm: {psalms_book_data['name']} {random_chapter_num}. Error: {passage_text}")
+        return jsonify({"error": "Could not retrieve the random Psalm text."}), 500
+
+    # Add a small introductory line before the Psalm text
+    intro_line = "A Psalm to ponder:\n"
+    full_response_text = intro_line + passage_text
+    
+    app.logger.info(f"Serving random Psalm: {psalms_book_data['name']} {random_chapter_num}")
+    return jsonify({"response": full_response_text, "score": None}) # Score is null as it's not an LLM eval
+
+
 if __name__ == "__main__":
     app.run(debug=True)

@@ -23,6 +23,10 @@
             const textMeasurer = document.getElementById('textMeasurer'); // Get reference to the new span
             const promptLine = commandInput.parentElement; // Get reference to the prompt line container
 
+            let idleTimerId;
+            const idleTimeoutDuration = 60000; // 60 seconds in milliseconds
+            let hasPsalmBeenShown = false;
+
             // Canvas related variables are no longer needed
             // const getTextWidthCanvas = document.createElement("canvas");
             // const getTextWidthContext = getTextWidthCanvas.getContext("2d");
@@ -83,8 +87,72 @@
                 updateCursorPosition();
             }
 
+            function showRandomPsalm() {
+                if (hasPsalmBeenShown) {
+                    return;
+                }
+                hasPsalmBeenShown = true; // Set flag immediately
+                clearTimeout(idleTimerId); // Clear timer as we are now showing it
 
+                // Add a small visual break or message if desired before fetching
+                // const thinkingElement = document.createElement('div');
+                // thinkingElement.textContent = "[A moment of reflection...]";
+                // outputDiv.appendChild(thinkingElement);
+                // outputDiv.scrollTop = outputDiv.scrollHeight;
+
+                promptLine.style.visibility = 'hidden'; // Hide prompt
+
+                fetch('/random_psalm')
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(errData => {
+                                throw new Error(errData.error || `Server error: ${response.status}`);
+                            }).catch(() => {
+                                throw new Error(`Server error: ${response.status}`);
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        const psalmText = data.response || "Could not retrieve a Psalm at this moment.";
+                        // The 'score' from /random_psalm is null, typeResponse handles it gracefully
+                        typeResponse(psalmText, outputDiv, data.score, () => {
+                            outputDiv.appendChild(document.createElement('br'));
+                            promptLine.style.visibility = 'visible';
+                            outputDiv.scrollTop = outputDiv.scrollHeight;
+                            commandInput.focus(); // Keep focus on input for subsequent user interaction
+                            updateCursorPosition();
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching random Psalm:', error);
+                        const errorElement = document.createElement('div');
+                        errorElement.textContent = `Error: Could not load a Psalm. ${error.message}`;
+                        errorElement.style.color = 'red'; // Or some other error indication
+                        outputDiv.appendChild(errorElement);
+                        outputDiv.appendChild(document.createElement('br'));
+                        promptLine.style.visibility = 'visible';
+                        outputDiv.scrollTop = outputDiv.scrollHeight;
+                        commandInput.focus();
+                        updateCursorPosition();
+                    });
+            }
+
+            function resetIdleTimer() {
+                if (hasPsalmBeenShown) {
+                    return; // Don't restart timer if Psalm has already been shown
+                }
+                clearTimeout(idleTimerId);
+                idleTimerId = setTimeout(showRandomPsalm, idleTimeoutDuration);
+            }
+
+            // Start the initial idle timer
+            resetIdleTimer();
+
+            // Reset timer on any keydown in the input field
             commandInput.addEventListener('keydown', function(event) {
+                resetIdleTimer(); // Reset idle timer on any key press
+
                 if (event.key === 'Enter') {
                     event.preventDefault();
                     const command = commandInput.value.trim();
@@ -236,9 +304,17 @@
             }
 
             // Focus on input when clicking anywhere in the terminal
-            document.getElementById('terminal').addEventListener('click', () => {
-                commandInput.focus();
+            document.getElementById('terminal').addEventListener('click', (event) => {
+                // If the click is on the input field itself, don't prevent default.
+                // Otherwise, focus the input. This helps if user clicks on output area.
+                if (event.target !== commandInput) {
+                    commandInput.focus();
+                }
             });
+
+            // Also reset idle timer if user clicks in terminal (might not type but shows activity)
+            document.getElementById('terminal').addEventListener('click', resetIdleTimer);
+
         });
     </script>
     <span id="textMeasurer"></span> <!-- Add the measurer span here -->
