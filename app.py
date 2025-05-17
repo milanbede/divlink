@@ -248,9 +248,42 @@ def query_llm():
                     )
 
                 passage_text = get_passage_from_json(parsed_ref)
-                return jsonify(
-                    {"response": passage_text}
-                )  # Success - returning actual passage or lookup error
+
+                # Check if get_passage_from_json returned an error message
+                lookup_error_prefixes = (
+                    "Error: Bible data not loaded", 
+                    "Book '", 
+                    "Chapter ", # e.g., "Chapter 5 not found..."
+                    "Start verse ", 
+                    "End verse ", 
+                    "No verses found for '"
+                )
+                is_lookup_error = False
+                if isinstance(passage_text, str): # Ensure it's a string before checking prefixes
+                    for prefix in lookup_error_prefixes:
+                        if passage_text.startswith(prefix):
+                            # More specific check for "Chapter ", "Start verse ", "End verse "
+                            if prefix in ["Chapter ", "Start verse ", "End verse "]:
+                                if "not found" in passage_text or "is invalid" in passage_text:
+                                    is_lookup_error = True
+                                    break
+                            else: # For other prefixes, the prefix itself is enough
+                                is_lookup_error = True
+                                break
+                
+                if is_lookup_error:
+                    app.logger.error(
+                        f"Bible lookup error for LLM reference '{passage_reference}': {passage_text}"
+                    )
+                    # Do not retry LLM here. The reference was parseable but invalid for lookup.
+                    return jsonify(
+                        {
+                            "response": "I received a Bible reference, but it appears to be invalid (e.g., chapter or verse out of range). Please try rephrasing your query."
+                        }
+                    )
+                else:
+                    # Successfully retrieved passage text
+                    return jsonify({"response": passage_text})
 
             except json.JSONDecodeError:
                 app.logger.warn(
