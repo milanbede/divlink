@@ -1,5 +1,5 @@
 import os
-import requests # Re-adding for drand
+import requests  # Re-adding for drand
 import json
 import re  # For parsing Bible references
 import random  # For selecting a random reference
@@ -31,6 +31,7 @@ else:
     )
     client = None  # Explicitly set client to None if key is missing
 
+
 def seed_random_from_drand():
     """Fetches randomness from drand and seeds the random number generator."""
     try:
@@ -43,13 +44,22 @@ def seed_random_from_drand():
             # Convert hex string to an integer for seeding
             seed_value = int(randomness_hex, 16)
             random.seed(seed_value)
-            app.logger.info(f"Successfully seeded random number generator from drand. Round: {data.get('round')}")
+            app.logger.info(
+                f"Successfully seeded random number generator from drand. Round: {data.get('round')}"
+            )
         else:
-            app.logger.error("Drand response did not contain 'randomness' field. Using default random seed.")
+            app.logger.error(
+                "Drand response did not contain 'randomness' field. Using default random seed."
+            )
     except requests.exceptions.RequestException as e:
-        app.logger.error(f"Could not fetch seed from drand: {e}. Using default random seed.")
+        app.logger.error(
+            f"Could not fetch seed from drand: {e}. Using default random seed."
+        )
     except (ValueError, TypeError, KeyError) as e:
-        app.logger.error(f"Error processing drand response: {e}. Using default random seed.")
+        app.logger.error(
+            f"Error processing drand response: {e}. Using default random seed."
+        )
+
 
 # Seed the random number generator at application startup
 seed_random_from_drand()
