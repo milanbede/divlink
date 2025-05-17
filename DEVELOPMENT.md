@@ -59,5 +59,5 @@ Run unit and integration tests with pytest. Tests requiring `OPENROUTER_API_KEY`
 
 ## Pre-commit Hooks
 
-This project uses pre-commit for code style and linting.  
+This project uses pre-commit for code style and linting.
 Install and run:
