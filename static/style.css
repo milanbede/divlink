@@ -166,7 +166,7 @@ body {
 
 .perfect-score-text {
     color: var(--perfect-score-color);
-    text-shadow: var(--perfect-score-glow);
+    text-shadow: var(--perfect-score-glow) !important;
 }
 
 /* Divine name in normal responses */
