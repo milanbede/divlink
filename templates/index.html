@@ -37,16 +37,19 @@
                     outputDiv.scrollTop < (outputDiv.scrollHeight - outputDiv.clientHeight)) {
 
                     scrollIntervalId = setInterval(() => {
-                        const targetScrollTop = outputDiv.scrollHeight - outputDiv.clientHeight;
-                        if (outputDiv.scrollTop < targetScrollTop) {
+                        // Re-calculate targetScrollTop on each tick using current scrollHeight
+                        const currentTargetScrollTop = outputDiv.scrollHeight - outputDiv.clientHeight;
+                        if (outputDiv.scrollTop < currentTargetScrollTop) {
                             outputDiv.scrollTop += scrollStepAmount;
-                            if (outputDiv.scrollTop >= targetScrollTop) {
-                                outputDiv.scrollTop = targetScrollTop; // Snap to exact bottom
+                            // Check if we've reached or passed the new target
+                            if (outputDiv.scrollTop >= currentTargetScrollTop) {
+                                outputDiv.scrollTop = currentTargetScrollTop; // Snap to exact bottom
                                 clearInterval(scrollIntervalId);
                                 scrollIntervalId = null;
                             }
                         } else {
-                            // Already at or past the bottom (e.g. content shrunk or scrolled manually)
+                            // If already at or past the bottom (e.g. content shrunk or scrolled manually, or reached target)
+                            outputDiv.scrollTop = currentTargetScrollTop; // Ensure it's exactly at bottom
                             clearInterval(scrollIntervalId);
                             scrollIntervalId = null;
                         }
