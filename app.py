@@ -1,16 +1,28 @@
 import os
-import requests
+# import requests # No longer needed
 import json
 import re  # For parsing Bible references
 import random  # For selecting a random reference
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 from dotenv import load_dotenv
+from openai import OpenAI, APIError, APIConnectionError, RateLimitError, APITimeoutError # OpenAI SDK
 
 load_dotenv()  # Load variables from .env file
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24)) # Needed for session management
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+# Initialize OpenAI client for OpenRouter
+if OPENROUTER_API_KEY:
+    client = OpenAI(
+        api_key=OPENROUTER_API_KEY,
+        base_url="https://openrouter.ai/api/v1"
+    )
+else:
+    app.logger.error("OPENROUTER_API_KEY not found in .env file. LLM functionality will be disabled.")
+    client = None # Explicitly set client to None if key is missing
 
 # Load Bible data and create a lookup map
 BIBLE_DATA = []
@@ -166,9 +178,9 @@ def get_passage_from_json(parsed_ref):
 
 @app.route("/query", methods=["POST"])
 def query_llm():
-    if not OPENROUTER_API_KEY:
-        app.logger.error("OPENROUTER_API_KEY not configured.")
-        return jsonify({"error": "API key not configured on the server."}), 500
+    if not client: # Check if OpenAI client was initialized
+        app.logger.error("OpenAI client not initialized. Check OPENROUTER_API_KEY.")
+        return jsonify({"error": "LLM service is not configured on the server."}), 500
 
     user_query = request.json.get("query")
     if not user_query:
@@ -198,39 +210,51 @@ Output:
 
 Begin."""
 
-    prompt = f'{base_prompt_text}\n\nInput: "{user_query}"\nOutput:'
+Begin."""
+
+    # Initialize or retrieve conversation history from session
+    if 'conversation_history' not in session:
+        session['conversation_history'] = [{"role": "system", "content": base_prompt_text}]
+    
+    # Add current user query to history
+    # Simple cap on history length to prevent it from growing too large
+    MAX_HISTORY_PAIRS = 5 # Number of user/assistant message pairs
+    current_history = list(session['conversation_history']) # Work with a copy
+    current_history.append({"role": "user", "content": user_query})
+
+    if len(current_history) > (MAX_HISTORY_PAIRS * 2 + 1): # +1 for system prompt
+        # Keep system prompt and last MAX_HISTORY_PAIRS exchanges
+        current_history = [current_history[0]] + current_history[-(MAX_HISTORY_PAIRS * 2):]
+    
+    # The 'prompt' variable is no longer directly used for the API call messages.
+    # The 'current_history' list serves as the messages payload.
 
     max_retries = 3
+    raw_llm_output = None # Initialize to ensure it's defined for history append on failure
+
     for attempt in range(max_retries):
         try:
-            app.logger.info(f"Attempt {attempt + 1} for query: {user_query}")
-            api_response = requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": "http://localhost:5000",  # Optional: Replace with your actual site URL
-                    "X-Title": "Bible Terminal",  # Optional: Replace with your app name
-                },
-                json={
-                    "model": "deepseek/deepseek-r1-distill-qwen-32b:free",
-                    "messages": [{"role": "user", "content": prompt}],
-                },
+            app.logger.info(f"Attempt {attempt + 1} for query: '{user_query}'. History length: {len(current_history)}")
+            
+            completion = client.chat.completions.create(
+                model="deepseek/deepseek-r1-distill-qwen-32b:free", # Or your chosen model
+                messages=current_history,
+                # temperature=0.7, # Optional: Adjust creativity
             )
-            api_response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
-            data = api_response.json()
+            
+            raw_llm_output = completion.choices[0].message.content if completion.choices else ""
 
-            raw_llm_output = (
-                data.get("choices", [{}])[0].get("message", {}).get("content", "")
-            )
-
-            if not raw_llm_output.strip():
+            if not raw_llm_output or not raw_llm_output.strip():
                 app.logger.warn(
-                    f"LLM returned empty content on attempt {attempt + 1} for query: {user_query}. Raw response: {data}"
+                    f"LLM returned empty content on attempt {attempt + 1} for query: '{user_query}'. Raw response: '{raw_llm_output}'"
                 )
                 if attempt < max_retries - 1:
                     continue  # Retry
                 else:
+                    session['conversation_history'] = current_history # Save user query
+                    if raw_llm_output is not None: # Check if raw_llm_output was set
+                         session['conversation_history'].append({"role": "assistant", "content": raw_llm_output}) # Save empty assistant response
+                    session.modified = True
                     return jsonify(
                         {
                             "response": "LLM returned an empty response after multiple attempts. Please try rephrasing."
@@ -248,11 +272,14 @@ Begin."""
                     or not all(isinstance(ref, str) for ref in references_list)
                 ):
                     app.logger.warn(
-                        f"LLM response JSON did not contain a valid 'references' list of strings on attempt {attempt + 1}. Query: {user_query}. Raw output: {raw_llm_output}"
+                        f"LLM response JSON did not contain a valid 'references' list of strings on attempt {attempt + 1}. Query: '{user_query}'. Raw output: '{raw_llm_output}'"
                     )
                     if attempt < max_retries - 1:
                         continue  # Retry
                     else:
+                        session['conversation_history'] = current_history # Save user query
+                        session['conversation_history'].append({"role": "assistant", "content": raw_llm_output}) # Save problematic assistant response
+                        session.modified = True
                         return jsonify(
                             {
                                 "response": "Could not extract a valid list of passage references from LLM after multiple attempts. Please try again."
@@ -261,11 +288,14 @@ Begin."""
 
                 if not references_list:  # Empty list of references
                     app.logger.warn(
-                        f"LLM returned an empty list of references on attempt {attempt + 1}. Query: {user_query}. Raw output: {raw_llm_output}"
+                        f"LLM returned an empty list of references on attempt {attempt + 1}. Query: '{user_query}'. Raw output: '{raw_llm_output}'"
                     )
                     if attempt < max_retries - 1:
                         continue  # Retry
                     else:
+                        session['conversation_history'] = current_history # Save user query
+                        session['conversation_history'].append({"role": "assistant", "content": raw_llm_output}) # Save empty list response
+                        session.modified = True
                         return jsonify(
                             {
                                 "response": "LLM did not provide any Bible references for your query after multiple attempts. Please try rephrasing."
@@ -275,18 +305,18 @@ Begin."""
                 # Randomly select one reference from the list
                 passage_reference = random.choice(references_list)
                 app.logger.info(
-                    f"Randomly selected reference: '{passage_reference}' from LLM output: {references_list}"
+                    f"Randomly selected reference: '{passage_reference}' from LLM output: {references_list} for query: '{user_query}'"
                 )
 
                 # Successfully got a passage_reference, now parse it and get text
                 parsed_ref = parse_bible_reference(passage_reference)
                 if not parsed_ref:
                     app.logger.warn(
-                        f"Could not parse the selected LLM reference: '{passage_reference}' for query: {user_query}"
+                        f"Could not parse the selected LLM reference: '{passage_reference}' for query: '{user_query}'. LLM raw output: '{raw_llm_output}'"
                     )
-                    # Do not retry here, as the LLM did provide a list, but the selected one was unparseable.
-                    # This might indicate an issue with the reference format from LLM or our parser.
-                    # For now, inform the user. A more robust solution might try another from the list if available.
+                    session['conversation_history'] = current_history
+                    session['conversation_history'].append({"role": "assistant", "content": raw_llm_output}) # Save original LLM output
+                    session.modified = True
                     return jsonify(
                         {
                             "response": f"Could not understand the selected Bible reference: '{passage_reference}'. Please try rephrasing your query."
@@ -324,9 +354,11 @@ Begin."""
 
                 if is_lookup_error:
                     app.logger.error(
-                        f"Bible lookup error for LLM reference '{passage_reference}': {passage_text}"
+                        f"Bible lookup error for LLM reference '{passage_reference}': {passage_text}. Query: '{user_query}'. LLM raw output: '{raw_llm_output}'"
                     )
-                    # Do not retry LLM here. The reference was parseable but invalid for lookup.
+                    session['conversation_history'] = current_history
+                    session['conversation_history'].append({"role": "assistant", "content": raw_llm_output}) # Save original LLM output
+                    session.modified = True
                     return jsonify(
                         {
                             "response": "I received a Bible reference, but it appears to be invalid (e.g., chapter or verse out of range). Please try rephrasing your query."
@@ -334,47 +366,70 @@ Begin."""
                     )
                 else:
                     # Successfully retrieved passage text
+                    session['conversation_history'] = current_history # Save user query
+                    session['conversation_history'].append({"role": "assistant", "content": raw_llm_output}) # Save successful LLM output
+                    session.modified = True
                     return jsonify({"response": passage_text})
 
             except json.JSONDecodeError:
                 app.logger.warn(
-                    f"LLM response was not valid JSON on attempt {attempt + 1}. Query: {user_query}. Raw output: {raw_llm_output}"
+                    f"LLM response was not valid JSON on attempt {attempt + 1}. Query: '{user_query}'. Raw output: '{raw_llm_output}'"
                 )
                 if attempt < max_retries - 1:
                     continue  # Retry
                 else:
+                    session['conversation_history'] = current_history
+                    session['conversation_history'].append({"role": "assistant", "content": raw_llm_output}) # Save malformed JSON response
+                    session.modified = True
                     return jsonify(
                         {
                             "response": "LLM did not return the expected JSON format after multiple attempts. Please try again."
                         }
                     )
-
-        except requests.exceptions.HTTPError as http_err:
-            # For HTTP errors, we typically don't retry unless it's a specific transient error.
-            # For simplicity here, we'll log and return error as before, not retrying on HTTP errors.
-            app.logger.error(f"HTTP error occurred: {http_err} - {api_response.text}")
-            error_message = "Error communicating with the LLM service."
-            try:
-                err_details = (
-                    api_response.json()
-                    .get("error", {})
-                    .get("message", api_response.text)
-                )
-                error_message = f"LLM service error: {err_details}"
-            except ValueError:  # if response is not JSON
-                pass
-            return jsonify({"error": error_message}), api_response.status_code
-        except requests.exceptions.RequestException as e:
-            # Network-level errors, usually not retried here without more sophisticated backoff.
-            app.logger.error(f"Request exception occurred: {e}")
-            return jsonify({"error": "Failed to connect to the LLM service."}), 503
-        except (IndexError, KeyError) as e:
-            # This error means the structure of the API response itself is unexpected (e.g. no 'choices')
-            # This is less about LLM content and more about API contract.
+        
+        # OpenAI SDK specific error handling
+        except APIConnectionError as e:
+            app.logger.error(f"OpenAI APIConnectionError on attempt {attempt + 1}: {e}")
+            # Potentially retry for connection errors if desired, or fail.
+            if attempt < max_retries - 1: # Example: retry connection errors
+                continue
+            failed_assistant_msg = "Error: Could not connect to the LLM service."
+            session['conversation_history'] = current_history
+            session['conversation_history'].append({"role": "assistant", "content": failed_assistant_msg})
+            session.modified = True
+            return jsonify({"error": failed_assistant_msg}), 503
+        except RateLimitError as e:
+            app.logger.error(f"OpenAI RateLimitError: {e}")
+            failed_assistant_msg = "Error: Rate limit exceeded with the LLM service. Please try again later."
+            session['conversation_history'] = current_history
+            session['conversation_history'].append({"role": "assistant", "content": failed_assistant_msg})
+            session.modified = True
+            return jsonify({"error": failed_assistant_msg}), 429
+        except APITimeoutError as e:
+            app.logger.error(f"OpenAI APITimeoutError on attempt {attempt+1}: {e}")
+            if attempt < max_retries -1:
+                continue # Retry timeouts
+            failed_assistant_msg = "Error: Request to LLM service timed out."
+            session['conversation_history'] = current_history
+            session['conversation_history'].append({"role": "assistant", "content": failed_assistant_msg})
+            session.modified = True
+            return jsonify({"error": failed_assistant_msg}), 504
+        except APIError as e: # Catch other OpenAI API errors
+            app.logger.error(f"OpenAI APIError: Status Code: {e.status_code}, Message: {e.message}")
+            error_message = f"LLM service error: {e.message}"
+            # Add the error as an assistant message to history
+            session['conversation_history'] = current_history
+            session['conversation_history'].append({"role": "assistant", "content": f"Error: {error_message}"})
+            session.modified = True
+            return jsonify({"error": error_message}), e.status_code or 500
+        except (IndexError, KeyError) as e: # For issues with parsing completion.choices structure
             app.logger.error(
-                f"Error parsing LLM API structure: {e}. Raw response: {data if 'data' in locals() else 'N/A'}"
+                f"Error parsing LLM SDK response structure: {e}. Completion object: {completion if 'completion' in locals() else 'N/A'}"
             )
-            # Not retrying this type of error as it's unlikely to be fixed by a simple retry.
+            failed_assistant_msg = "Error: Received an unexpected response structure from the LLM service."
+            session['conversation_history'] = current_history
+            session['conversation_history'].append({"role": "assistant", "content": failed_assistant_msg})
+            session.modified = True
             return (
                 jsonify(
                     {
