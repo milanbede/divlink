@@ -27,6 +27,33 @@
             const idleTimeoutDuration = 60000; // 60 seconds in milliseconds
             let hasPsalmBeenShown = false;
 
+            let scrollIntervalId = null;
+            const scrollStepAmount = 3; // Pixels to scroll per step
+            const scrollIntervalTime = 16; // Milliseconds per interval (approx 60fps)
+
+            function ensureScrolling() {
+                // If not already scrolling and scrolling is needed
+                if (!scrollIntervalId && outputDiv.scrollHeight > outputDiv.clientHeight &&
+                    outputDiv.scrollTop < (outputDiv.scrollHeight - outputDiv.clientHeight)) {
+
+                    scrollIntervalId = setInterval(() => {
+                        const targetScrollTop = outputDiv.scrollHeight - outputDiv.clientHeight;
+                        if (outputDiv.scrollTop < targetScrollTop) {
+                            outputDiv.scrollTop += scrollStepAmount;
+                            if (outputDiv.scrollTop >= targetScrollTop) {
+                                outputDiv.scrollTop = targetScrollTop; // Snap to exact bottom
+                                clearInterval(scrollIntervalId);
+                                scrollIntervalId = null;
+                            }
+                        } else {
+                            // Already at or past the bottom (e.g. content shrunk or scrolled manually)
+                            clearInterval(scrollIntervalId);
+                            scrollIntervalId = null;
+                        }
+                    }, scrollIntervalTime);
+                }
+            }
+
             // Canvas related variables are no longer needed
             // const getTextWidthCanvas = document.createElement("canvas");
             // const getTextWidthContext = getTextWidthCanvas.getContext("2d");
@@ -139,7 +166,7 @@
                         typeResponse(psalmText, outputDiv, data.score, () => {
                             outputDiv.appendChild(document.createElement('br'));
                             promptLine.style.visibility = 'visible';
-                            outputDiv.scrollTop = outputDiv.scrollHeight;
+                            ensureScrolling();
                             commandInput.focus(); // Keep focus on input for subsequent user interaction
                             updateCursorPosition();
                         });
@@ -152,7 +179,7 @@
                         outputDiv.appendChild(errorElement);
                         outputDiv.appendChild(document.createElement('br'));
                         promptLine.style.visibility = 'visible';
-                        outputDiv.scrollTop = outputDiv.scrollHeight;
+                        ensureScrolling();
                         commandInput.focus();
                         updateCursorPosition();
                     });
@@ -193,6 +220,7 @@
                         commandElement.className = 'echoed-command-line'; // Add class for flex styling
                         commandElement.innerHTML = `<span class="username-echo">seeker</span><span class="prompt-echo">&gt;</span><span class="echoed-command-text">${escapeHtml(command)}</span>`;
                         outputDiv.appendChild(commandElement);
+                        ensureScrolling();
 
                         // Hide the entire prompt line during response typing
                         promptLine.style.visibility = 'hidden';
@@ -224,7 +252,7 @@
                                 outputDiv.appendChild(document.createElement('br'));
                                 commandInput.value = '';
                                 promptLine.style.visibility = 'visible';
-                                outputDiv.scrollTop = outputDiv.scrollHeight;
+                                ensureScrolling();
                                 commandInput.focus();
                                 updateCursorPosition();
                             });
@@ -238,7 +266,7 @@
                                 outputDiv.appendChild(document.createElement('br'));
                                 commandInput.value = '';
                                 promptLine.style.visibility = 'visible';
-                                outputDiv.scrollTop = outputDiv.scrollHeight;
+                                ensureScrolling();
                                 commandInput.focus();
                                 updateCursorPosition();
                             });
@@ -250,9 +278,10 @@
                         commandElement.innerHTML = `<span class="username-echo">seeker</span><span class="prompt-echo">&gt;</span>&nbsp;`; // Echo empty prompt with a non-breaking space
                         outputDiv.appendChild(commandElement);
                         outputDiv.appendChild(document.createElement('br')); // Add a line break
+                        ensureScrolling();
 
                         commandInput.value = ''; // Ensure it's cleared
-                        outputDiv.scrollTop = outputDiv.scrollHeight; // Scroll to bottom
+                        // outputDiv.scrollTop = outputDiv.scrollHeight; // Replaced by ensureScrolling
                         commandInput.focus(); // Keep focus on input
                         updateCursorPosition(); // Explicitly update cursor after clearing and focusing
                     }
@@ -314,6 +343,7 @@
                         }
 
                         i += consumedLength;
+                        ensureScrolling(); // Scroll as text is typed
                         setTimeout(typeChar, typingSpeed);
                     } else {
                         // Typing finished
