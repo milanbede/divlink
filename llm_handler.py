@@ -120,13 +120,14 @@ class LLMHandler:
         if match:
             content = match.group(1).strip()
 
-        # At this point, content must be a JSON list or object
-        if not (
-            (content.startswith("[") and content.endswith("]"))
-            or (content.startswith("{") and content.endswith("}"))
-        ):
+        # Extract the first JSON list or object block
+        json_block_pattern = re.compile(r"(\[.*?\]|\{.*?\})", re.DOTALL)
+        match = json_block_pattern.search(content)
+        if match:
+            content = match.group(1).strip()
+        else:
             raise json.JSONDecodeError(
-                "No valid JSON list or object found after stripping fences.",
+                "No valid JSON list or object found in LLM response.",
                 raw_llm_output,
                 0,
             )
