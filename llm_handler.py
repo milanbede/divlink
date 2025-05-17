@@ -2,7 +2,6 @@ import re
 import json
 import random
 import time
-from json import JSONDecodeError
 
 from openai import (
     APIError,
@@ -105,12 +104,19 @@ Begin."""
             )
 
         if not extracted_json_str:
-            if (raw_llm_output.strip().startswith("{") and raw_llm_output.strip().endswith("}")) or \
-               (raw_llm_output.strip().startswith("[") and raw_llm_output.strip().endswith("]")):
+            if (
+                raw_llm_output.strip().startswith("{")
+                and raw_llm_output.strip().endswith("}")
+            ) or (
+                raw_llm_output.strip().startswith("[")
+                and raw_llm_output.strip().endswith("]")
+            ):
                 extracted_json_str = raw_llm_output
             else:
                 raise json.JSONDecodeError(
-                    "No valid JSON list or object block found in LLM output.", raw_llm_output, 0
+                    "No valid JSON list or object block found in LLM output.",
+                    raw_llm_output,
+                    0,
                 )
         return extracted_json_str
 
