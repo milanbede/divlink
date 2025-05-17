@@ -1,6 +1,60 @@
+:root {
+    --bg-color: #000000;
+    --text-color: #00ff00;
+    --text-glow: 0 0 4px #00ff00;
+    --username-color: #00cc00;
+    --username-glow: 0 0 4px #00cc00;
+    --prompt-color: #00ff00;
+    --prompt-glow: 0 0 4px #00ff00;
+    --input-color: #00ff00;
+    --input-glow: 0 0 4px #00ff00;
+    --cursor-bg-color: #00ff00;
+    --scanline-rgba: rgba(0, 255, 0, 0.05);
+
+    --perfect-score-color: #e69c00; /* New Yellow */
+    --perfect-score-glow: 0 0 5px #e69c00, 0 0 10px #c98a00; /* Adjusted yellow glow (darker shade for secondary) */
+
+    --divine-name-font-weight: bold;
+    --divine-name-text-shadow: 0 0 7px #88ff88, 0 0 14px #00ff00;
+    /* --divine-name-color: #ccffcc; /* Optional: for divine name text itself */
+
+    /* For .perfect-score-text .divine-name */
+    --divine-name-perfect-text-shadow: 0 0 5px #ffffff,
+                                     0 0 10px #fff2cc, /* Light yellow halo (derived from e69c00) */
+                                     0 0 18px #e69c00, /* Main new yellow glow */
+                                     0 0 25px #c98a00;  /* Outer darker yellow glow */
+    /* --divine-name-perfect-color: inherit; /* Or specific color if needed, inherits from .perfect-score-text by default */
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg-color: #fdfdfd;
+        --text-color: #2b2b2b;
+        --text-glow: 0 0 2px rgba(43, 43, 43, 0.2); /* Subtle dark glow */
+        --username-color: #1e1e1e; /* Slightly darker for username */
+        --username-glow: 0 0 2px rgba(30, 30, 30, 0.2);
+        --prompt-color: #2b2b2b;
+        --prompt-glow: 0 0 2px rgba(43, 43, 43, 0.2);
+        --input-color: #2b2b2b;
+        --input-glow: 0 0 2px rgba(43, 43, 43, 0.2);
+        --cursor-bg-color: #2b2b2b;
+        --scanline-rgba: rgba(43, 43, 43, 0.07); /* Darker, more visible scanlines on light */
+
+        --perfect-score-color: #e69c00; /* Same New Yellow */
+        --perfect-score-glow: 0 0 5px #e69c00, 0 0 10px #c98a00; /* Same yellow glow */
+
+        --divine-name-font-weight: bold;
+        --divine-name-text-shadow: 0 0 1px rgba(0,0,0,0.2); /* Subtle dark shadow for divine name */
+        /* --divine-name-color: #1a1a1a; /* Optional */
+
+        --divine-name-perfect-text-shadow: 0 0 1px rgba(0,0,0,0.3), 0 0 3px #e69c00; /* Subtle dark outline and main yellow glow */
+        /* --divine-name-perfect-color: inherit; */
+    }
+}
+
 body {
-    background-color: #000000; /* Black background */
-    color: #00ff00; /* Bright green text */
+    background-color: var(--bg-color);
+    color: var(--text-color);
     font-family: 'Lucida Console', Monaco, 'Courier New', monospace; /* Classic terminal font */
     margin: 0;
     padding: 20px;
@@ -28,10 +82,10 @@ body {
     height: 100%;
     background: repeating-linear-gradient(
         0deg,
-        rgba(0, 255, 0, 0.05), /* Fainter green lines */
-        rgba(0, 255, 0, 0.05) 1px,
+        var(--scanline-rgba),
+        var(--scanline-rgba) 1px,
         transparent 1px,
-        transparent 3px /* Adjust line thickness and spacing */
+        transparent 3px
     );
     pointer-events: none; /* So it doesn't interfere with clicks */
     z-index: 1; /* Behind content */
@@ -40,7 +94,7 @@ body {
 #output div {
     margin-bottom: 5px;
     word-wrap: break-word;
-    text-shadow: 0 0 4px #00ff00; /* Green glow for text */
+    text-shadow: var(--text-glow);
     position: relative; /* To ensure it's above scanlines */
     z-index: 2;
 }
@@ -53,15 +107,15 @@ body {
 }
 
 .username, .username-echo {
-    color: #00cc00; /* Slightly darker green for username, or choose another color */
-    text-shadow: 0 0 4px #00cc00;
+    color: var(--username-color);
+    text-shadow: var(--username-glow);
     margin-right: 4px; /* Space between username and prompt symbol */
     user-select: none;
 }
 
 .prompt, .prompt-echo {
-    color: #00ff00; /* Green prompt */
-    text-shadow: 0 0 4px #00ff00; /* Matching glow for prompt */
+    color: var(--prompt-color);
+    text-shadow: var(--prompt-glow);
     margin-right: 8px;
     user-select: none;
 }
@@ -69,13 +123,13 @@ body {
 #commandInput {
     background-color: transparent;
     border: none;
-    color: #00ff00; /* Green input text */
+    color: var(--input-color);
     font-family: inherit;
     font-size: inherit;
     outline: none;
     flex-grow: 1;
     padding: 0;
-    text-shadow: 0 0 4px #00ff00; /* Add green glow to input text */
+    text-shadow: var(--input-glow);
     caret-color: transparent; /* Hide the default browser caret */
 }
 
@@ -83,7 +137,7 @@ body {
     position: absolute;
     display: inline-block;
     width: 1ch; /* Width of one character */
-    background-color: #00ff00; /* Matrix green */
+    background-color: var(--cursor-bg-color);
     pointer-events: none; /* So it doesn't interfere with input field clicks */
     z-index: 3; /* Above other prompt-line content if needed */
     visibility: hidden; /* Initially hidden, JS will manage visibility */
@@ -91,7 +145,7 @@ body {
 }
 
 @keyframes blinkCustomCursor {
-    0%, 100% { background-color: #00ff00; } /* Visible */
+    0%, 100% { background-color: var(--cursor-bg-color); } /* Visible */
     50% { background-color: transparent; }    /* Invisible */
 }
 
@@ -117,26 +171,21 @@ body {
 }
 
 .perfect-score-text {
-    color: #FFFF00; /* CRT Yellow */
-    text-shadow: 0 0 5px #FFFF00, 0 0 10px #FFD700; /* Yellow glow, maybe a touch of gold */
+    color: var(--perfect-score-color);
+    text-shadow: var(--perfect-score-glow);
 }
 /* Ensure divine-name within perfect-score-text still gets its specific glow */
 .perfect-score-text .divine-name {
-    /* Inherits yellow color from parent, or can be set explicitly */
-    /* color: #FFFF99; */ /* Lighter yellow for divine name if desired */
-    font-weight: bold;
-     text-shadow: 0 0 5px #ffffff, /* Inner white glow */
-                 0 0 10px #ffffcc, /* Light yellow halo */
-                 0 0 18px #FFFF00, /* Main yellow glow */
-                 0 0 25px #FFD700;  /* Outer gold/darker yellow glow */
+    /* color: var(--divine-name-perfect-color); /* Inherits from .perfect-score-text by default */
+    font-weight: var(--divine-name-font-weight); /* Consistent font weight */
+    text-shadow: var(--divine-name-perfect-text-shadow);
 }
 
 
 .divine-name {
-    font-weight: bold; /* Make it bolder */
-    /* Stronger glow than default text-shadow */
-    text-shadow: 0 0 7px #88ff88, 0 0 14px #00ff00;
-    /* color: #ccffcc; */ /* Optional: slightly different shade of green */
+    font-weight: var(--divine-name-font-weight);
+    text-shadow: var(--divine-name-text-shadow);
+    /* color: var(--divine-name-color); /* Optional: if you want to control its color directly */
 }
 
 .echoed-command-line {
