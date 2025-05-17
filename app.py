@@ -306,44 +306,60 @@ Begin."""
                         f"LLM response JSON 'references' is not a list on attempt {attempt + 1}. Query: '{user_query}'. Raw output: '{raw_llm_output}'"
                     )
                     if attempt < max_retries - 1:
-                        continue # Retry
+                        continue  # Retry
                     else:
                         # Save problematic response and return error
                         session["conversation_history"] = current_history
-                        session["conversation_history"].append({"role": "assistant", "content": raw_llm_output})
+                        session["conversation_history"].append(
+                            {"role": "assistant", "content": raw_llm_output}
+                        )
                         session.modified = True
-                        return jsonify({"response": "LLM did not return the expected list format. Please try again."})
+                        return jsonify(
+                            {
+                                "response": "LLM did not return the expected list format. Please try again."
+                            }
+                        )
 
                 valid_references_for_selection = []
                 weights = []
 
                 for item in references_data_list:
                     if not isinstance(item, dict):
-                        app.logger.warn(f"Item in 'references' list is not a dictionary: {item}. Skipping.")
+                        app.logger.warn(
+                            f"Item in 'references' list is not a dictionary: {item}. Skipping."
+                        )
                         continue
-                    
+
                     ref_str = item.get("reference")
                     rel_score = item.get("relevance_score")
                     help_score = item.get("helpfulness_score")
 
                     if not isinstance(ref_str, str) or not ref_str.strip():
-                        app.logger.warn(f"Invalid or missing 'reference' string in item: {item}. Skipping.")
+                        app.logger.warn(
+                            f"Invalid or missing 'reference' string in item: {item}. Skipping."
+                        )
                         continue
-                    
+
                     # Ensure scores are numbers, default to 0 if not or if invalid type
                     try:
-                        rel_score_num = float(rel_score if isinstance(rel_score, (int, float)) else 0)
-                        help_score_num = float(help_score if isinstance(help_score, (int, float)) else 0)
+                        rel_score_num = float(
+                            rel_score if isinstance(rel_score, (int, float)) else 0
+                        )
+                        help_score_num = float(
+                            help_score if isinstance(help_score, (int, float)) else 0
+                        )
                     except (ValueError, TypeError):
-                        app.logger.warn(f"Invalid score types in item: {item}. Defaulting scores to 0 for this item.")
+                        app.logger.warn(
+                            f"Invalid score types in item: {item}. Defaulting scores to 0 for this item."
+                        )
                         rel_score_num = 0
                         help_score_num = 0
-                    
+
                     # Scores should be positive for weighting, ensure at least a minimal weight if scores are 0 or negative
                     combined_score = rel_score_num + help_score_num
                     # Ensure weight is at least 1 to be included in random.choices if all scores are 0
-                    weight = max(1, combined_score) 
-                                        
+                    weight = max(1, combined_score)
+
                     valid_references_for_selection.append(ref_str)
                     weights.append(weight)
 
@@ -355,16 +371,20 @@ Begin."""
                         continue  # Retry
                     else:
                         session["conversation_history"] = current_history
-                        session["conversation_history"].append({"role": "assistant", "content": raw_llm_output})
+                        session["conversation_history"].append(
+                            {"role": "assistant", "content": raw_llm_output}
+                        )
                         session.modified = True
                         return jsonify(
                             {
                                 "response": "LLM did not provide any usable Bible references after multiple attempts. Please try rephrasing."
                             }
                         )
-                
+
                 # Weighted random selection
-                passage_reference = random.choices(valid_references_for_selection, weights=weights, k=1)[0]
+                passage_reference = random.choices(
+                    valid_references_for_selection, weights=weights, k=1
+                )[0]
                 app.logger.info(
                     f"Weighted randomly selected reference: '{passage_reference}' from LLM output for query: '{user_query}'. Weights: {weights}, Options: {valid_references_for_selection}"
                 )
