@@ -10,7 +10,7 @@ body {
 
 #terminal {
     background-color: #050505; /* Very dark grey, almost black */
-    border: 1px solid #00ff00; /* Green border */
+    /* border: 1px solid #00ff00; */ /* Green border - REMOVED */
     padding: 15px;
     height: calc(100vh - 70px); /* Full viewport height minus body padding and some margin */
     overflow-y: auto;
