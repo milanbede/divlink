@@ -690,15 +690,11 @@ def random_psalm():
         )
         return jsonify({"error": "Could not retrieve the random Psalm text."}), 500
 
-    # Add a small introductory line before the Psalm text
-    intro_line = "A Psalm to ponder:\n"
-    full_response_text = intro_line + passage_text
-
     app.logger.info(
         f"Serving random Psalm: {psalms_book_data['name']} {random_chapter_num}"
     )
     return jsonify(
-        {"response": full_response_text, "score": None}
+        {"response": passage_text, "score": None}
     )  # Score is null as it's not an LLM eval
 
 
