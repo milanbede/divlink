@@ -73,10 +73,6 @@ Begin."""
     def _update_conversation_history(
         self, session, current_history, user_query, assistant_response=None
     ):
-        # This method assumes current_history was already retrieved and potentially modified
-        # (e.g. by adding user_query before an API call).
-        # It will now add the assistant_response if provided, and then trim.
-
         if assistant_response is not None:
             current_history.append({"role": "assistant", "content": assistant_response})
 
@@ -92,53 +88,37 @@ Begin."""
         session["modified"] = True
 
     def _extract_json_from_llm_output(self, raw_llm_output):
-        json_match = re.search(
-            r"```json\s*([\[\{][\s\S]*?[\]\}])\s*```|([\[\{][\s\S]*?[\]\}])",
-            raw_llm_output,
-            re.DOTALL,
-        )
-        extracted_json_str = None
-        if json_match:
-            extracted_json_str = (
-                json_match.group(1) if json_match.group(1) else json_match.group(2)
+        """
+        Extracts and cleans a JSON string from the LLM output.
+        Strips code fences (``` or ```json) and normalizes common unicode issues.
+        """
+        content = raw_llm_output.strip()
+
+        # Remove code fences if present (handles ```json ... ``` or ``` ... ```)
+        fence_pattern = re.compile(r"^```(?:json)?\s*([\s\S]*?)\s*```$", re.DOTALL)
+        match = fence_pattern.match(content)
+        if match:
+            content = match.group(1).strip()
+
+        # At this point, content must be a JSON list or object
+        if not (
+            (content.startswith("[") and content.endswith("]"))
+            or (content.startswith("{") and content.endswith("}"))
+        ):
+            raise json.JSONDecodeError(
+                "No valid JSON list or object found after stripping fences.",
+                raw_llm_output,
+                0,
             )
 
-        if not extracted_json_str:
-            if (
-                raw_llm_output.strip().startswith("{")
-                and raw_llm_output.strip().endswith("}")
-            ) or (
-                raw_llm_output.strip().startswith("[")
-                and raw_llm_output.strip().endswith("]")
-            ):
-                extracted_json_str = raw_llm_output
-            else:
-                raise json.JSONDecodeError(
-                    "No valid JSON list or object block found in LLM output.",
-                    raw_llm_output,
-                    0,
-                )
+        # Normalize problematic unicode characters
+        content = content.replace("\u00a0", " ")
+        content = content.replace("\u200b", "")
+        content = content.replace("\ufeff", "")
+        content = content.replace("–", "-")
+        content = content.replace("—", "-")
 
-        if extracted_json_str:
-            # Replace common problematic Unicode characters that might break JSON parsing.
-            # Non-breaking space (U+00A0) -> regular space (U+0020)
-            extracted_json_str = extracted_json_str.replace("\u00a0", " ")
-            # Zero-width space (U+200B) -> remove
-            extracted_json_str = extracted_json_str.replace("\u200b", "")
-            # Byte Order Mark (U+FEFF) -> remove (though strip() might get it at ends)
-            extracted_json_str = extracted_json_str.replace("\ufeff", "")
-            # Em-dash (U+2013 / U+2014) -> hyphen (U+002D)
-            extracted_json_str = extracted_json_str.replace(
-                "–", "-"
-            )  # Common em-dash (U+2013)
-            extracted_json_str = extracted_json_str.replace(
-                "—", "-"
-            )  # Less common em-dash (U+2014)
-
-            # Strip standard whitespace again in case replacements or original string had them at ends.
-            extracted_json_str = extracted_json_str.strip()
-
-        return extracted_json_str
+        return content
 
     def _parse_llm_references_data(self, references_data_list):
         valid_references_for_selection = []
@@ -189,25 +169,20 @@ Begin."""
             return {"error": "LLM service is not configured on the server."}, 500
 
         current_history = self._get_conversation_history(session)
-        current_history.append(
-            {"role": "user", "content": user_query}
-        )  # Add current user query
+        current_history.append({"role": "user", "content": user_query})
 
         raw_llm_output = None
         last_failed_output_for_reprompt = None
 
         for attempt in range(self.MAX_RETRIES):
-            messages_for_api_call = list(
-                current_history
-            )  # Use a copy for modifications in this attempt
+            messages_for_api_call = list(current_history)
 
             if attempt > 0 and last_failed_output_for_reprompt is not None:
                 reprompt_instruction_content = (
                     f"Your previous response was not in the correct JSON format or was empty. "
                     f"Please ensure your output is a valid JSON list as specified in the initial system instructions. "
                     f'The expected structure is: [{{"ref": "Book C:V-V", "relevance": N, "helpfulness": N}}, ...]. Please ensure the output is a JSON list, not a JSON object containing a list. '
-                    f"Your previous problematic response was: ```\n{last_failed_output_for_reprompt}\n```. "
-                    f"Please provide the corrected response based on the original query and context."
+                    f"Your previous problematic response was: ```\n{last_failed_output_for_reprompt}\n```."
                 )
                 messages_for_api_call.append(
                     {"role": "user", "content": reprompt_instruction_content}
@@ -222,8 +197,7 @@ Begin."""
                 )
                 start_time = time.monotonic()
                 completion = self.client.chat.completions.create(
-                    model=self.model_name,
-                    messages=messages_for_api_call,
+                    model=self.model_name, messages=messages_for_api_call
                 )
                 end_time = time.monotonic()
                 latency_ms = (end_time - start_time) * 1000
@@ -231,9 +205,7 @@ Begin."""
                 raw_llm_output = (
                     completion.choices[0].message.content if completion.choices else ""
                 )
-                prompt_tokens = (
-                    completion.usage.prompt_tokens if completion.usage else 0
-                )
+                prompt_tokens = completion.usage.prompt_tokens if completion.usage else 0
                 completion_tokens = (
                     completion.usage.completion_tokens if completion.usage else 0
                 )
@@ -251,11 +223,7 @@ Begin."""
                     return {"error": "LLM returned empty content after retries."}, 500
 
                 extracted_json_str = self._extract_json_from_llm_output(raw_llm_output)
-                self.logger.debug(
-                    f"Attempting to parse JSON: <{extracted_json_str}>"
-                )  # Log the exact string being parsed
-                # json.loads will be called here. If it fails, the main try-except for
-                # JSONDecodeError at the end of the loop will catch it.
+                self.logger.debug(f"Attempting to parse JSON: <{extracted_json_str}>")
                 references_data_list = json.loads(extracted_json_str)
 
                 if not isinstance(references_data_list, list):
@@ -271,7 +239,6 @@ Begin."""
                     self.logger.error(
                         f"LLM output was not a list after retries. Query: '{user_query}', LLM Raw: '{raw_llm_output}'"
                     )
-                    # Fallback logic is handled by the caller (main.py)
                     return {"error": "LLM output was not a list after retries."}, 500
 
                 valid_refs, weights = self._parse_llm_references_data(
@@ -301,7 +268,6 @@ Begin."""
                 self.logger.info(
                     f"Selected reference: '{passage_reference}' (score: {selected_weight}). Query: '{user_query}'."
                 )
-                # Normalization of en-dashes to hyphens moved to _extract_json_from_llm_output
 
                 parsed_bible_ref = self.bible_parser.parse_reference(passage_reference)
                 if not parsed_bible_ref:
@@ -314,29 +280,26 @@ Begin."""
                     self.logger.error(
                         f"Could not parse selected LLM reference: '{passage_reference}'. Query: '{user_query}', LLM Raw: '{raw_llm_output}'"
                     )
-                    # Fallback logic is handled by the caller (main.py)
                     return {
                         "error": f"Could not parse LLM reference: '{passage_reference}'."
                     }, 500
 
                 passage_text = self.bible_parser.get_passage(parsed_bible_ref)
 
-                if passage_text is None:  # BibleParser returns None on error
+                if passage_text is None:
                     self.logger.error(
                         f"Bible lookup failed for LLM reference: '{passage_reference}'. Query: '{user_query}', LLM Raw: '{raw_llm_output}'"
                     )
                     self._update_conversation_history(
                         session, current_history, user_query, raw_llm_output
                     )
-                    # Fallback logic is handled by the caller (main.py)
                     return {
                         "error": f"Bible lookup failed for reference '{passage_reference}'."
                     }, 500
 
-                # If passage_text is not None, it's a success
                 self._update_conversation_history(
                     session, current_history, user_query, raw_llm_output
-                )  # Save successful interaction
+                )
                 return {
                     "response": passage_text,
                     "score": selected_weight,
