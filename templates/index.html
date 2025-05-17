@@ -161,6 +161,7 @@
 
             function typeResponse(text, container, callback) {
                 const responseElement = document.createElement('div');
+                responseElement.className = 'llm-response-text'; // Add class for styling
                 container.appendChild(responseElement);
                 let i = 0;
                 const typingSpeed = 30; // Milliseconds per character (adjust for desired speed)

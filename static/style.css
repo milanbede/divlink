@@ -103,3 +103,7 @@ body {
     white-space: pre; /* Crucial for measuring spaces like in an input */
     /* Styles like font, letter-spacing, etc., will be copied dynamically via JS */
 }
+
+.llm-response-text {
+    white-space: pre-line; /* Respects newline characters from the text content */
+}
