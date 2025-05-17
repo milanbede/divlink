@@ -376,7 +376,10 @@ class LLMHandler:
             except RateLimitError as e:
                 self.logger.error(f"OpenAI RateLimitError: {e}")
                 self._update_conversation_history(
-                    session, current_history, user_query, "Error: Rate limit exceeded with the LLM service."
+                    session,
+                    current_history,
+                    user_query,
+                    "Error: Rate limit exceeded with the LLM service.",
                 )
                 return {
                     "error": "Error: Rate limit exceeded with the LLM service. Please try again later."
