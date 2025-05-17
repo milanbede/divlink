@@ -261,6 +261,10 @@
                                 newAnchor.href = hrefValue;
                                 newAnchor.target = '_blank';
                                 newAnchor.rel = 'noopener noreferrer';
+                                // style like normal text and italic
+                                newAnchor.style.textDecoration = 'none';
+                                newAnchor.style.fontStyle = 'italic';
+                                newAnchor.style.color = 'inherit';
                                 currentTargetElement.appendChild(newAnchor);
                                 currentTargetElement = newAnchor;
                                 consumedLength = tagText.length;
