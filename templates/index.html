@@ -164,7 +164,7 @@
                 const baseResponseElement = document.createElement('div');
                 baseResponseElement.className = 'llm-response-text'; // Add class for styling
                 container.appendChild(baseResponseElement);
-                
+
                 let currentTargetElement = baseResponseElement; // Element to append to
                 let i = 0;
                 const typingSpeed = 30; // Milliseconds per character (adjust for desired speed)
@@ -209,7 +209,7 @@
                             // Let's stick to a simple model: if it's not our tag, it's text.
                             // If the text itself contains '<' or '&', createTextNode handles it.
                         }
-                        
+
                         i += consumedLength;
                         setTimeout(typeChar, typingSpeed);
                     } else {
