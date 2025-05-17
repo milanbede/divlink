@@ -110,7 +110,7 @@ body {
 }
 
 .divine-name {
-    font-weight: bold !important; 
+    font-weight: bold !important;
     color: #FF4500 !important; /* OrangeRed - for very obvious testing */
     /* Significantly different and stronger glow */
     text-shadow: 0 0 5px #ffffff, /* Inner white glow */
