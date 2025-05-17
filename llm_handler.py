@@ -297,6 +297,8 @@ Begin."""
                 self.logger.info(
                     f"Selected reference: '{passage_reference}' (score: {selected_weight}). Query: '{user_query}'."
                 )
+                # Normalize en-dashes to hyphens for broader parser compatibility
+                passage_reference = passage_reference.replace("–", "-")
 
                 parsed_bible_ref = self.bible_parser.parse_reference(passage_reference)
                 if not parsed_bible_ref:
