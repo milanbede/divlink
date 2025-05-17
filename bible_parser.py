@@ -232,12 +232,16 @@ class BibleParser:
 
         if start_verse is None:  # Whole chapter
             for i, verse_text in enumerate(chapter_verses_list):
+
                 def replace_curly_content(match):
                     content = match.group(1)
                     if len(content.split()) <= 2:
                         return f"<em>{content}</em>"
                     return ""
-                cleaned_verse_text = re.sub(r"\{(.*?)\}", replace_curly_content, verse_text).strip()
+
+                cleaned_verse_text = re.sub(
+                    r"\{(.*?)\}", replace_curly_content, verse_text
+                ).strip()
                 cleaned_verse_text_highlighted = self.divine_name_pattern.sub(
                     r'<span class="divine-name">\1</span>', cleaned_verse_text
                 )
@@ -258,12 +262,16 @@ class BibleParser:
 
             for i in range(start_verse_index, end_verse_index + 1):
                 verse_text = chapter_verses_list[i]
+
                 def replace_curly_content(match):
                     content = match.group(1)
                     if len(content.split()) <= 2:
                         return f"<em>{content}</em>"
                     return ""
-                cleaned_verse_text = re.sub(r"\{(.*?)\}", replace_curly_content, verse_text).strip()
+
+                cleaned_verse_text = re.sub(
+                    r"\{(.*?)\}", replace_curly_content, verse_text
+                ).strip()
                 cleaned_verse_text_highlighted = self.divine_name_pattern.sub(
                     r'<span class="divine-name">\1</span>', cleaned_verse_text
                 )
