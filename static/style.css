@@ -9,12 +9,12 @@ body {
 }
 
 #terminal {
-    background-color: #050505; /* Very dark grey, almost black */
+    /* background-color: #050505; */ /* Very dark grey, almost black - REMOVED to inherit body background */
     /* border: 1px solid #00ff00; */ /* Green border - REMOVED */
-    padding: 15px;
-    height: calc(100vh - 70px); /* Full viewport height minus body padding and some margin */
+    padding: 0; /* REMOVED padding, body padding will provide spacing */
+    height: calc(100vh - 40px); /* Full viewport height minus body padding (20px top + 20px bottom) */
     overflow-y: auto;
-    box-shadow: 0 0 15px #00ff00, inset 0 0 10px rgba(0, 128, 0, 0.7); /* Green glow, inner green shadow for depth */
+    /* box-shadow: 0 0 15px #00ff00, inset 0 0 10px rgba(0, 128, 0, 0.7); */ /* REMOVED window effect */
     position: relative; /* For scanlines pseudo-element */
 }
 
