@@ -1,6 +1,7 @@
 import os
 import requests
-import json  # Moved from inside the function
+import json
+import re  # For parsing Bible references
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 
@@ -10,10 +11,136 @@ app = Flask(__name__)
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
+# Load Bible data and create a lookup map
+BIBLE_DATA = []
+BOOK_MAP = {}
+try:
+    # Adjust the path if your data directory is elsewhere relative to app.py
+    bible_file_path = os.path.join(os.path.dirname(__file__), "data", "en_kjv.json")
+    if not os.path.exists(bible_file_path):
+        # Fallback for common execution from project root if app is in a subdirectory
+        bible_file_path_alt = os.path.join(os.getcwd(), "data", "en_kjv.json")
+        if os.path.exists(bible_file_path_alt):
+            bible_file_path = bible_file_path_alt
+        else:
+            raise FileNotFoundError(f"Bible data file not found at {bible_file_path} or {bible_file_path_alt}")
+
+    with open(bible_file_path, "r", encoding="utf-8") as f:
+        BIBLE_DATA = json.load(f)
+    
+    for i, book_data_item in enumerate(BIBLE_DATA):
+        BOOK_MAP[book_data_item["name"].lower()] = i
+        BOOK_MAP[book_data_item["abbrev"].lower()] = i
+        # Example: if abbrev is "psa", also map "psalm" and "psalms" if name is "Psalms"
+        if book_data_item["name"].lower() == "psalms":
+            BOOK_MAP["psalm"] = i
+
+
+except FileNotFoundError as e:
+    app.logger.error(f"Bible data file (data/en_kjv.json) not found. {e}")
+except json.JSONDecodeError:
+    app.logger.error("Error decoding Bible data JSON (data/en_kjv.json).")
+except Exception as e:
+    app.logger.error(f"An unexpected error occurred loading Bible data: {e}")
+
 
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+def parse_bible_reference(reference_str):
+    """
+    Parses a Bible reference string into its components.
+    Handles "Book Chapter:Verse", "Book Chapter:Verse-Verse", "Book Chapter".
+    """
+    # Regex to capture book name (can include numbers and spaces), chapter, start_verse, and optional end_verse
+    match = re.match(r"^(.*?)\s*(\d+)(?:\s*:\s*(\d+)(?:\s*-\s*(\d+))?)?$", reference_str.strip())
+    
+    if not match:
+        app.logger.info(f"Could not parse reference string: {reference_str}")
+        return None
+
+    book_name_str = match.group(1).strip()
+    chapter_str = match.group(2)
+    start_verse_str = match.group(3)
+    end_verse_str = match.group(4)
+
+    try:
+        parsed_ref = {
+            "book_name": book_name_str,
+            "chapter": int(chapter_str),
+            "start_verse": int(start_verse_str) if start_verse_str else None,
+            "end_verse": int(end_verse_str) if end_verse_str else (int(start_verse_str) if start_verse_str else None)
+        }
+        # If only chapter is given, start_verse and end_verse will be None.
+        # If only start_verse is given (e.g. "John 3:16"), end_verse is set to start_verse.
+        return parsed_ref
+    except ValueError: # Should not happen if regex matches digits correctly
+        app.logger.error(f"ValueError parsing numbers in reference: {reference_str}")
+        return None
+
+def get_passage_from_json(parsed_ref):
+    """
+    Retrieves and formats Bible passage text from the loaded JSON data.
+    """
+    if not BIBLE_DATA or not BOOK_MAP:
+        return "Error: Bible data not loaded on the server."
+
+    book_name_key = parsed_ref["book_name"].lower()
+    book_index = BOOK_MAP.get(book_name_key)
+
+    # Simple fuzzy matching for book names
+    if book_index is None:
+        if book_name_key.endswith('s') and BOOK_MAP.get(book_name_key[:-1]) is not None:
+            book_index = BOOK_MAP.get(book_name_key[:-1])
+        elif not book_name_key.endswith('s') and BOOK_MAP.get(book_name_key + 's') is not None:
+             book_index = BOOK_MAP.get(book_name_key + 's')
+        
+        if book_index is None: # Still not found
+             return f"Book '{parsed_ref['book_name']}' not found. Please check spelling or try a standard abbreviation (e.g., Gen, Exo, Psa, Mat, Rom)."
+
+    book_data = BIBLE_DATA[book_index]
+    
+    chapter_num = parsed_ref["chapter"]
+    chapter_index = chapter_num - 1 # Adjust for 0-based list index
+
+    if not (0 <= chapter_index < len(book_data["chapters"])):
+        return f"Chapter {chapter_num} not found in {book_data['name']} (max: {len(book_data['chapters'])})."
+
+    chapter_verses_list = book_data["chapters"][chapter_index]
+    
+    start_verse = parsed_ref["start_verse"]
+    end_verse = parsed_ref["end_verse"]
+
+    passage_texts = []
+    output_reference_display = f"{book_data['name']} {chapter_num}"
+
+    if start_verse is None: # Whole chapter
+        for i, verse_text in enumerate(chapter_verses_list):
+            passage_texts.append(f"{chapter_num}:{i+1} {verse_text}")
+    else:
+        start_verse_index = start_verse - 1 # Adjust for 0-based list index
+        end_verse_index = (end_verse - 1) if end_verse is not None else start_verse_index
+
+        if not (0 <= start_verse_index < len(chapter_verses_list)):
+            return f"Start verse {start_verse} not found in {book_data['name']} chapter {chapter_num} (max: {len(chapter_verses_list)})."
+        if not (0 <= end_verse_index < len(chapter_verses_list)) or end_verse_index < start_verse_index:
+            return f"End verse {end_verse} is invalid for {book_data['name']} chapter {chapter_num}."
+
+        for i in range(start_verse_index, end_verse_index + 1):
+            passage_texts.append(f"{chapter_num}:{i+1} {chapter_verses_list[i]}")
+        
+        if start_verse == end_verse:
+            output_reference_display += f":{start_verse}"
+        else:
+            output_reference_display += f":{start_verse}-{end_verse}"
+            
+    if not passage_texts:
+        return f"No verses found for '{parsed_ref['book_name']} {chapter_num}:{start_verse if start_verse else ''}{'-'+str(end_verse) if end_verse and end_verse != start_verse else ''}'."
+
+    full_passage_text = "\n".join(passage_texts)
+    return f"{output_reference_display}\n{full_passage_text}"
 
 
 @app.route("/query", methods=["POST"])
@@ -87,8 +214,18 @@ def query_llm():
                                 "response": "Could not extract a valid passage reference from LLM after multiple attempts. Please try again."
                             }
                         )
+                
+                # Successfully got passage_reference from LLM, now parse it and get text
+                parsed_ref = parse_bible_reference(passage_reference)
+                if not parsed_ref:
+                    app.logger.warn(f"Could not parse LLM reference: '{passage_reference}' for query: {user_query}")
+                    # Retry if LLM output is unparseable as a reference
+                    if attempt < max_retries - 1:
+                        continue 
+                    return jsonify({"response": f"Could not understand the Bible reference: '{passage_reference}'. Please try rephrasing your query."})
 
-                return jsonify({"response": passage_reference})  # Success
+                passage_text = get_passage_from_json(parsed_ref)
+                return jsonify({"response": passage_text}) # Success - returning actual passage or lookup error
 
             except json.JSONDecodeError:
                 app.logger.warn(
