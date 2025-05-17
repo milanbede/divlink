@@ -289,7 +289,7 @@ class BibleParser:
         return f"{output_reference_display}\n{full_passage_text}"
 
     def get_random_psalm_passage(self):
-        """Retrieves the full text of a random Psalm."""
+        """Retrieves the full text of a curated powerful Psalm (not a completely random one)."""
         if not self.is_data_loaded():
             self.logger.error("Cannot fetch random Psalm, Bible book index not loaded.")
             return "Error: Bible book index not available to fetch a random Psalm."
@@ -331,7 +331,9 @@ class BibleParser:
             self.logger.error("Book of Psalms has no chapters listed for random Psalm.")
             return "Error: No Psalms available."
 
-        random_chapter_num = random.randint(1, num_chapters_in_psalms)
+        # List of powerful Psalms for encouragement during difficult challenges
+        powerful_psalms = [18, 23, 27, 34, 42, 46, 55, 61, 91, 121]
+        random_chapter_num = random.choice(powerful_psalms)
 
         parsed_ref = {
             "book_name": psalms_book_data["name"],
@@ -356,6 +358,6 @@ class BibleParser:
             return "Error: Could not retrieve the random Psalm text due to an internal issue."
 
         self.logger.info(
-            f"Successfully retrieved random Psalm: {psalms_book_data['name']} {random_chapter_num}"
+            f"Successfully retrieved curated powerful Psalm: {psalms_book_data['name']} {random_chapter_num}"
         )
         return passage_text
