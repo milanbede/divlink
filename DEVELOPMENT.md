@@ -13,25 +13,25 @@ This document covers setting up a local development environment, running tests, 
 
 ## Setup
 
-1. **Clone the repository**
+1. **Clone the repository**  
    ```bash
    git clone <your-repository-url>
    cd <your-repository-directory-name>
    ```
 
-2. **Create a virtual environment (recommended)**
+2. **Create a virtual environment (recommended)**  
    ```bash
    python -m venv venv
    source venv/bin/activate      # On Windows use `venv\Scripts\activate`
    ```
 
-3. **Install dependencies**
+3. **Install dependencies**  
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Environment variables**
-   Create a `.env` file in the project root and add:
+4. **Environment variables**  
+   Create a `.env` file in the project root and add:  
    ```env
    OPENROUTER_API_KEY=your_openrouter_api_key_here
    # Optional:
@@ -41,12 +41,12 @@ This document covers setting up a local development environment, running tests, 
 
 ## Running the Application
 
-- **Via Python**
+- **Via Python**  
   ```bash
   python main.py
   ```
 
-- **Via Flask CLI**
+- **Via Flask CLI**  
   ```bash
   flask run
   ```

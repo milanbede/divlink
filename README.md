@@ -1,21 +1,27 @@
 # Divine Link
 
-A gentle path to solace and spiritual wisdom.
+Find hope, comfort, and guidance in the Word of God.
 
-Divine Link is a modern, intuitive interface to the Word of God, designed to reach the brokenhearted and the curious. With natural language queries and a focus on comfort and clarity, Divine Link connects you to Scripture when you need it most.
+Divine Link is your personalized gateway to Scripture, crafted to bring solace to the brokenhearted, answers to the curious, and encouragement to all seeking spiritual connection. Whether you're navigating life's challenges or simply exploring faith, Divine Link offers:
 
-Live Demo
+- Intuitive natural language search: Ask in your own words and discover relevant Bible passages.
+- AI-curated insights: Hand-selected verses and passages that speak to the heart.
+- Random Psalm feature: Draw daily inspiration from the timeless poetry of the Psalms.
+- Lightweight, hassle-free experience: No installation—just open your browser and begin your journey.
+
+Live Demo  
 https://bible.bedeai.com
 
-Key Features
-- Find comforting and inspiring Bible passages with simple, natural language.
-- Discover context-rich verses handpicked by an AI powered by LLMs.
-- Random Psalm feature for daily reflection.
+How It Works  
+1. Pour out your heart: Type in your thoughts, struggles, or questions.  
+2. Receive guidance: Our AI-powered guide connects you to the most meaningful verses.  
+3. Reflect and grow: Meditate on the passages that resonate with you.
 
-Get Started
-Visit the Live Demo above, type what’s on your heart, and let Divine Link guide you—no installation required.
+Get Started Now  
+Visit the Live Demo, share what’s on your mind, and let Divine Link illuminate your path.
 
-For development setup, contribution guidelines, and advanced configuration, see DEVELOPMENT.md.
+Contribute & Develop  
+For setup instructions, contribution guidelines, and detailed developer notes, see DEVELOPMENT.md.
 
-License
-Licensed under the terms described in LICENSE.txt. The King James Version (KJV) texts in this repository are in the public domain.
+License  
+This project is licensed under the terms described in LICENSE.txt. King James Version (KJV) texts included here are in the public domain.
