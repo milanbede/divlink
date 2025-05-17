@@ -193,7 +193,7 @@ def query_llm():
                     "X-Title": "Bible Terminal",  # Optional: Replace with your app name
                 },
                 json={
-                    "model": "qwen/qwen3-0.6b-04-28:free",
+                    "model": "deepseek/deepseek-r1-distill-qwen-32b:free",
                     "messages": [{"role": "user", "content": prompt}],
                 },
             )
