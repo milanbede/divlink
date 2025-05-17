@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
+from tqdm import tqdm
 
 from llm_handler import LLMHandler
 from bible_parser import BibleParser
@@ -84,7 +85,7 @@ class TestFaithBenchIntegration(unittest.TestCase):
         total_cases = len(ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY)
         results_summary = []
 
-        for i, case in enumerate(ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY):
+        for i, case in enumerate(tqdm(ALL_FAITHBENCH_TEST_CASES_WITH_CATEGORY, desc="FaithBench Progress")):
             with self.subTest(category=case["category"], prompt=case["prompt"]):
                 mock_session = {}  # Simulate Flask session for conversation history
 
