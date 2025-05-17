@@ -179,7 +179,7 @@ body {
 .perfect-score-text .divine-name {
     font-weight: var(--divine-name-font-weight);
     color: var(--divine-name-perfect-color);
-    text-shadow: var(--divine-name-perfect-text-shadow);
+    text-shadow: var(--divine-name-perfect-text-shadow) !important;
 }
 
 .echoed-command-line {
