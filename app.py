@@ -2,6 +2,7 @@ import os
 import requests
 import json
 import re  # For parsing Bible references
+
 # import xml.etree.ElementTree as ET # No longer needed for NIST
 import random  # For selecting a random reference
 from flask import Flask, render_template, request, jsonify, session
@@ -63,8 +64,8 @@ def get_nist_seed():
             "https://beacon.nist.gov/beacon/2.0/pulse/last", timeout=5
         )
         response.raise_for_status()
-        data = response.json() # NIST beacon v2.0 returns JSON
-        
+        data = response.json()  # NIST beacon v2.0 returns JSON
+
         # Access the outputValue from the nested structure
         randomness_hex = data.get("pulse", {}).get("outputValue")
 
@@ -79,7 +80,12 @@ def get_nist_seed():
     except requests.exceptions.RequestException as e:
         app.logger.error(f"Could not fetch seed from NIST beacon: {e}.")
         return None
-    except (json.JSONDecodeError, ValueError, TypeError, KeyError) as e: # Updated exception handling
+    except (
+        json.JSONDecodeError,
+        ValueError,
+        TypeError,
+        KeyError,
+    ) as e:  # Updated exception handling
         app.logger.error(f"Error processing NIST beacon JSON response: {e}.")
         return None
 
