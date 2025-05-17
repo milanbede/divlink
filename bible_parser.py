@@ -171,7 +171,7 @@ class BibleParser:
             self.logger.error(
                 "Attempted to get passage, but Bible book index is not loaded."
             )
-            return "Error: Bible book index not loaded on the server."
+            return None
 
         book_name_key = parsed_ref["book_name"].lower()
         canonical_book_name = self.book_map.get(book_name_key)
@@ -193,7 +193,7 @@ class BibleParser:
                 self.logger.warning(
                     f"Book '{parsed_ref['book_name']}' (key: '{book_name_key}') not found in book_map."
                 )
-                return f"Book '{parsed_ref['book_name']}' not found. Please check spelling or try a standard abbreviation (e.g., Gen, Exo, Psa, Mat, Rom)."
+                return None
 
         # Now, load the specific book's data
         book_file_path = os.path.join(
@@ -206,23 +206,24 @@ class BibleParser:
             self.logger.error(
                 f"Data file for book '{canonical_book_name}' not found at {book_file_path}."
             )
-            return f"Error: Data file for book '{parsed_ref['book_name']}' not found on server."
+            return None
         except json.JSONDecodeError:
             self.logger.error(
                 f"Error decoding JSON for book '{canonical_book_name}' from {book_file_path}."
             )
-            return f"Error: Could not decode data for book '{parsed_ref['book_name']}'."
+            return None
         except Exception as e:
             self.logger.error(
                 f"Unexpected error loading book data for '{canonical_book_name}' from {book_file_path}: {e}"
             )
-            return f"Error: Could not load data for book '{parsed_ref['book_name']}' due to an unexpected issue."
+            return None
 
         chapter_num = parsed_ref["chapter"]
         chapter_index = chapter_num - 1
 
         if not (0 <= chapter_index < len(book_data["chapters"])):
-            return f"Chapter {chapter_num} not found in {book_data['name']} (max: {len(book_data['chapters'])})."
+            self.logger.warning(f"Chapter {chapter_num} not found in {book_data['name']} (max: {len(book_data['chapters'])}).")
+            return None
 
         chapter_verses_list = book_data["chapters"][chapter_index]
         start_verse = parsed_ref["start_verse"]
@@ -253,12 +254,14 @@ class BibleParser:
             )
 
             if not (0 <= start_verse_index < len(chapter_verses_list)):
-                return f"Start verse {start_verse} not found in {book_data['name']} chapter {chapter_num} (max: {len(chapter_verses_list)})."
+                self.logger.warning(f"Start verse {start_verse} not found in {book_data['name']} chapter {chapter_num} (max: {len(chapter_verses_list)}).")
+                return None
             if (
                 not (0 <= end_verse_index < len(chapter_verses_list))
                 or end_verse_index < start_verse_index
             ):
-                return f"End verse {end_verse} is invalid for {book_data['name']} chapter {chapter_num}."
+                self.logger.warning(f"End verse {end_verse} is invalid for {book_data['name']} chapter {chapter_num}.")
+                return None
 
             for i in range(start_verse_index, end_verse_index + 1):
                 verse_text = chapter_verses_list[i]
@@ -283,7 +286,8 @@ class BibleParser:
                 output_reference_display += f":{start_verse}-{end_verse}"
 
         if not passage_texts:
-            return f"No verses found for '{parsed_ref['book_name']} {chapter_num}:{start_verse if start_verse else ''}{'-'+str(end_verse) if end_verse and end_verse != start_verse else ''}'."
+            self.logger.warning(f"No verses found for '{parsed_ref['book_name']} {chapter_num}:{start_verse if start_verse else ''}{'-'+str(end_verse) if end_verse and end_verse != start_verse else ''}'.")
+            return None
 
         full_passage_text = "\n".join(passage_texts)
         return f"{output_reference_display}\n{full_passage_text}"
@@ -292,7 +296,7 @@ class BibleParser:
         """Retrieves the full text of a curated powerful Psalm (not a completely random one)."""
         if not self.is_data_loaded():
             self.logger.error("Cannot fetch random Psalm, Bible book index not loaded.")
-            return "Error: Bible book index not available to fetch a random Psalm."
+            return None
 
         # "psalm" key in book_map should map to the canonical filename like "Psalms"
         psalms_canonical_name = self.book_map.get("psalm")
@@ -301,7 +305,7 @@ class BibleParser:
             self.logger.error(
                 "Book 'Psalms' (via 'psalm' key) not found in book_map for random Psalm."
             )
-            return "Error: Book of Psalms not found in index."
+            return None
 
         psalms_file_path = os.path.join(
             self.books_dir_path, f"{psalms_canonical_name}.json"
@@ -313,23 +317,23 @@ class BibleParser:
             self.logger.error(
                 f"Psalms data file ('{psalms_canonical_name}.json') not found at {psalms_file_path}."
             )
-            return "Error: Psalms data file not found on server."
+            return None
         except json.JSONDecodeError:
             self.logger.error(
                 f"Error decoding Psalms JSON from '{psalms_canonical_name}.json' at {psalms_file_path}."
             )
-            return "Error: Could not decode Psalms data."
+            return None
         except Exception as e:
             self.logger.error(
                 f"Unexpected error loading Psalms data from {psalms_file_path}: {e}"
             )
-            return "Error: Could not load Psalms data due to an unexpected issue."
+            return None
 
         num_chapters_in_psalms = len(psalms_book_data["chapters"])
 
         if num_chapters_in_psalms == 0:
             self.logger.error("Book of Psalms has no chapters listed for random Psalm.")
-            return "Error: No Psalms available."
+            return None
 
         # List of powerful Psalms for encouragement during difficult challenges
         powerful_psalms = [18, 23, 27, 34, 42, 46, 55, 61, 91, 121]
@@ -345,17 +349,11 @@ class BibleParser:
         passage_text = self.get_passage(parsed_ref)
 
         # Check if get_passage returned an error (it shouldn't with controlled input, but good practice)
-        if (
-            not passage_text
-            or passage_text.startswith("Error:")
-            or passage_text.startswith("Book '")  # From get_passage error
-            or passage_text.startswith("Chapter ")  # From get_passage error
-            or passage_text.startswith("No verses found")  # From get_passage error
-        ):
+        if not passage_text: # get_passage now returns None on error
             self.logger.error(
-                f"Failed to get passage for random Psalm: {psalms_book_data['name']} {random_chapter_num}. Internal error: {passage_text}"
+                f"Failed to get passage for random Psalm: {psalms_book_data['name']} {random_chapter_num}. get_passage returned None."
             )
-            return "Error: Could not retrieve the random Psalm text due to an internal issue."
+            return None
 
         self.logger.info(
             f"Successfully retrieved curated powerful Psalm: {psalms_book_data['name']} {random_chapter_num}"
