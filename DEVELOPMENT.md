@@ -55,4 +55,9 @@ Once running, open your browser at `http://127.0.0.1:5000`.
 
 ## Testing
 
-Run unit and integration tests with:
+Run unit and integration tests with pytest. Tests requiring `OPENROUTER_API_KEY` will be skipped if the key is not set.
+
+## Pre-commit Hooks
+
+This project uses pre-commit for code style and linting.  
+Install and run:
