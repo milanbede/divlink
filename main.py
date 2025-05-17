@@ -69,26 +69,12 @@ def query_llm():
 def random_psalm():
     passage_text = bible_parser.get_random_psalm_passage()
 
-    # Check if get_random_psalm_passage returned an error string
-    if passage_text.startswith("Error:"):
-        app.logger.error(f"Failed to get random Psalm: {passage_text}")
-        # Return the error message from the parser, or a generic one
-        # For consistency, let's use the message from the parser if it's user-friendly enough
-        # or map specific internal errors to user-friendly messages.
-        # For now, just pass it through if it's a known error type.
-        if (
-            "Bible data not available" in passage_text
-            or "Book of Psalms not found" in passage_text
-            or "No Psalms available" in passage_text
-        ):
-            return (
-                jsonify({"error": passage_text}),
-                500,
-            )  # Or a more generic "Could not retrieve Psalm"
-        return (
-            jsonify({"error": "Could not retrieve a random Psalm at this moment."}),
-            500,
+    if passage_text is None:
+        app.logger.error(
+            "Failed to retrieve a random Psalm. Serving a fallback verse."
         )
+        fallback_verse = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n- John 3:16"
+        return jsonify({"response": fallback_verse, "score": None}), 200
 
     # If no error, passage_text contains the Psalm
     # The logger message for success is now inside BibleParser.get_random_psalm_passage()
