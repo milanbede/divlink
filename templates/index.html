@@ -94,7 +94,8 @@
                     if (command) {
                         // Display command in output
                         const commandElement = document.createElement('div');
-                        commandElement.innerHTML = `<span class="prompt-echo">&gt;</span> ${escapeHtml(command)}`;
+                        commandElement.className = 'echoed-command-line'; // Add class for flex styling
+                        commandElement.innerHTML = `<span class="prompt-echo">&gt;</span><span class="echoed-command-text">${escapeHtml(command)}</span>`;
                         outputDiv.appendChild(commandElement);
 
                         // Hide the entire prompt line during response typing

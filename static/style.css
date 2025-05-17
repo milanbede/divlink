@@ -108,3 +108,16 @@ body {
 .llm-response-text {
     white-space: pre-line; /* Respects newline characters from the text content */
 }
+
+.echoed-command-line {
+    display: flex;
+    align-items: center;
+    /* Inherits text-shadow, font, color from parent #output div or body */
+}
+
+.echoed-command-text {
+    padding: 0; /* Match #commandInput's padding */
+    /* font-family, font-size, color, text-shadow are inherited */
+    white-space: pre-wrap; /* Preserve spaces and wrap text like an input might appear to */
+    word-wrap: break-word; /* Ensure long words break if necessary */
+}
