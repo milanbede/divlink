@@ -13,6 +13,7 @@ from openai import (
     RateLimitError,
     APITimeoutError,
 )  # OpenAI SDK
+from random_seeder import RandomSeeder
 
 load_dotenv()  # Load variables from .env file
 
@@ -31,8 +32,6 @@ else:
         "OPENROUTER_API_KEY not found in .env file. LLM functionality will be disabled."
     )
     client = None  # Explicitly set client to None if key is missing
-
-from random_seeder import RandomSeeder
 
 # Initialize the random number generator at application startup
 seeder = RandomSeeder(app.logger)
