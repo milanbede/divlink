@@ -2,6 +2,8 @@ import re
 import json
 import random
 import time
+from json import JSONDecodeError
+
 from openai import (
     APIError,
     APIConnectionError,
@@ -56,6 +58,7 @@ Use only Scripture. Avoid emotional reassurance, vague spirituality, or modern t
 }
 
 Begin."""
+
     MAX_HISTORY_PAIRS = 5  # Number of user/assistant message pairs
     MAX_RETRIES = 3
 
@@ -91,7 +94,7 @@ Begin."""
             ]
 
         session["conversation_history"] = current_history
-        session.modified = True
+        session["modified"] = True
 
     def _extract_json_from_llm_output(self, raw_llm_output):
         json_match = re.search(
@@ -229,8 +232,11 @@ Begin."""
                     }, 200  # Return 200 for client to display
 
                 extracted_json_str = self._extract_json_from_llm_output(raw_llm_output)
-                parsed_json = json.loads(extracted_json_str)
-                references_data_list = parsed_json.get("references")
+                try:
+                    parsed_json = json.loads(extracted_json_str)
+                except JSONDecodeError:
+                    parsed_json = {}
+                references_data_list = parsed_json.get("references", None)
 
                 if not isinstance(references_data_list, list):
                     self.logger.warn(
