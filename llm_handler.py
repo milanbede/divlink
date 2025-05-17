@@ -74,7 +74,6 @@ class LLMHandler:
     ]
 
     Begin."""
-
     MAX_HISTORY_PAIRS = 5  # Number of user/assistant message pairs
     MAX_RETRIES = 3
 
@@ -189,6 +188,10 @@ class LLMHandler:
             )
             return {"error": "LLM service is not configured on the server."}, 500
 
+        # Initialize our list of already‐printed passages
+        if "printed_passages" not in session:
+            session["printed_passages"] = []
+
         current_history = self._get_conversation_history(session)
         current_history.append({"role": "user", "content": user_query})
 
@@ -282,6 +285,11 @@ class LLMHandler:
                         "error": "No valid references found in LLM output after retries."
                     }, 500
 
+                # If we've already shown a passage, penalize its helpfulness by 3
+                for idx, ref in enumerate(valid_refs):
+                    if ref in session["printed_passages"]:
+                        weights[idx] = max(1, weights[idx] - 3)
+
                 # Prefer perfect relevance/helpfulness (10/10) if present
                 perfect_indices = [i for i, w in enumerate(weights) if w == 20]
                 if perfect_indices:
@@ -290,6 +298,7 @@ class LLMHandler:
                     selected_index = random.choices(
                         range(len(valid_refs)), weights=weights, k=1
                     )[0]
+
                 passage_reference = valid_refs[selected_index]
                 selected_weight = weights[selected_index]
 
@@ -324,6 +333,9 @@ class LLMHandler:
                     return {
                         "error": f"Bible lookup failed for reference '{passage_reference}'."
                     }, 500
+
+                # Remember that this passage has now been printed
+                session["printed_passages"].append(passage_reference)
 
                 self._update_conversation_history(
                     session, current_history, user_query, raw_llm_output
@@ -364,10 +376,7 @@ class LLMHandler:
             except RateLimitError as e:
                 self.logger.error(f"OpenAI RateLimitError: {e}")
                 self._update_conversation_history(
-                    session,
-                    current_history,
-                    user_query,
-                    "Error: Rate limit exceeded with the LLM service.",
+                    session, current_history, user_query, "Error: Rate limit exceeded with the LLM service."
                 )
                 return {
                     "error": "Error: Rate limit exceeded with the LLM service. Please try again later."
