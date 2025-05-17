@@ -247,9 +247,15 @@ Begin."""
                     self._update_conversation_history(
                         session, current_history, user_query, raw_llm_output
                     )
-                    return {
-                        "response": "LLM did not return the expected list format. Please try again."
-                    }, 200
+                    # Attempt fallback to random psalm
+                    self.logger.info(f"LLM output not a list after retries. Attempting fallback to random psalm. Query: '{user_query}', LLM Raw: '{raw_llm_output}'")
+                    psalm_text = self.bible_parser.get_random_psalm_passage()
+                    if not psalm_text or (isinstance(psalm_text, str) and psalm_text.startswith("Error:")):
+                        self.logger.error(f"Fallback to random psalm failed for query '{user_query}'. BibleParser output: '{psalm_text}'")
+                        return {"error": "An internal error occurred while attempting to provide a scripture passage."}, 500
+                    else:
+                        self.logger.info(f"Successfully provided random psalm as fallback for query '{user_query}'.")
+                        return {"response": psalm_text, "source": "fallback_random_psalm"}, 200
 
                 valid_refs, weights = self._parse_llm_references_data(
                     references_data_list
@@ -287,9 +293,15 @@ Begin."""
                     self._update_conversation_history(
                         session, current_history, user_query, raw_llm_output
                     )
-                    return {
-                        "response": f"Could not understand the selected Bible reference: '{passage_reference}'. Please try rephrasing your query."
-                    }, 200
+                    # Attempt fallback to random psalm
+                    self.logger.warn(f"Could not parse LLM reference: '{passage_reference}'. Attempting fallback to random psalm. Query: '{user_query}', LLM Raw: '{raw_llm_output}'")
+                    psalm_text = self.bible_parser.get_random_psalm_passage()
+                    if not psalm_text or (isinstance(psalm_text, str) and psalm_text.startswith("Error:")):
+                        self.logger.error(f"Fallback to random psalm failed for query '{user_query}' (unparseable ref: '{passage_reference}'). BibleParser output: '{psalm_text}'")
+                        return {"error": "An internal error occurred while attempting to provide a scripture passage."}, 500
+                    else:
+                        self.logger.info(f"Successfully provided random psalm as fallback for query '{user_query}' (unparseable ref: '{passage_reference}').")
+                        return {"response": psalm_text, "source": "fallback_random_psalm"}, 200
 
                 passage_text = self.bible_parser.get_passage(parsed_bible_ref)
 
@@ -330,9 +342,15 @@ Begin."""
                     self._update_conversation_history(
                         session, current_history, user_query, raw_llm_output
                     )
-                    return {
-                        "response": "I received a Bible reference, but it appears to be invalid (e.g., chapter or verse out of range). Please try rephrasing your query."
-                    }, 200
+                    # Attempt fallback to random psalm
+                    self.logger.error(f"Bible lookup error for '{passage_reference}': {passage_text}. Attempting fallback to random psalm. Query: '{user_query}', LLM Raw: '{raw_llm_output}'")
+                    psalm_text = self.bible_parser.get_random_psalm_passage()
+                    if not psalm_text or (isinstance(psalm_text, str) and psalm_text.startswith("Error:")):
+                        self.logger.error(f"Fallback to random psalm failed for query '{user_query}' (lookup error for ref: '{passage_reference}'). BibleParser output: '{psalm_text}'")
+                        return {"error": "An internal error occurred while attempting to provide a scripture passage."}, 500
+                    else:
+                        self.logger.info(f"Successfully provided random psalm as fallback for query '{user_query}' (lookup error for ref: '{passage_reference}').")
+                        return {"response": psalm_text, "source": "fallback_random_psalm"}, 200
 
                 self._update_conversation_history(
                     session, current_history, user_query, raw_llm_output
