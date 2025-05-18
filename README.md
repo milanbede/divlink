@@ -4,10 +4,14 @@ Find hope, comfort, and guidance in the Word of God.
 
 Divine Link is your personalized gateway to Scripture, crafted to bring solace to the brokenhearted, answers to the curious, and encouragement to all seeking spiritual connection. Whether you're navigating life's challenges or simply exploring faith, Divine Link offers:
 
-- Intuitive natural language search: Ask in your own words and discover relevant Bible passages.
-- AI-curated insights: Hand-selected verses and passages that speak to the heart.
-- Random Psalm feature: Draw daily inspiration from the timeless poetry of the Psalms.
-- Lightweight, hassle-free experience: No installation—just open your browser and begin your journey.
+-[x] Intuitive natural language search: Ask in your own words and discover relevant Bible passages.
+-[x] Random Psalm: Draw daily inspiration from the timeless poetry of the Psalms.
+-[x] Lightweight, hassle-free experience: No installation—just open your browser and begin your journey.
+-[ ] ~~Interpretation of God's word by a machine.~~ No, just the Word itself.
+-[ ] Semantic caching to speed it up.
+-[ ] API for integration into third-party sites.
+-[ ] Offline version to avoid sending data.
+-[ ] Apps for Android/iOS.
 
 ### [Live Demo](https://bible.bedeai.com)
 
