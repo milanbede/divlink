@@ -48,7 +48,7 @@ This document covers setting up a local development environment, running tests, 
 
 - **Via Flask CLI**
   ```bash
-  flask run
+  flask --app main.py run
   ```
 
 Once running, open your browser at `http://127.0.0.1:5000`.

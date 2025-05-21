@@ -11,7 +11,7 @@ from llm_handler import LLMHandler  # Import the new LLMHandler class
 
 load_dotenv()  # Load variables from .env file
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path="/static")
 app.secret_key = os.getenv(
     "FLASK_SECRET_KEY", os.urandom(24)
 )  # Needed for session management
