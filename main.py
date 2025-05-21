@@ -31,22 +31,22 @@ query_model = api.model(
     },
 )
 
-# Model for responses that only include the text and a score (e.g., random psalm, fallbacks)
-simple_response_model = api.model(
-    "SimpleResponse",
+# Model for responses that primarily return a Bible passage and an optional score
+PassageResponseModel = api.model(
+    "PassageResponse",
     {
-        "response": fields.String(description="Bible passage text"),
+        "response": fields.String(description="Bible passage text or fallback message"),
         "score": fields.Integer(
             description="Combined relevance+helpfulness score", allow_null=True
         ),
     },
 )
 
-# Model for full LLM responses including performance metrics
-llm_response_model = api.model(
-    "LLMResponse",
+# Model for responses from an LLM query, including the passage and performance metrics
+LLMQueryResponseModel = api.model(
+    "LLMQueryResponse",
     {
-        "response": fields.String(description="Bible passage text"),
+        "response": fields.String(description="Bible passage text selected based on LLM output"),
         "score": fields.Integer(
             description="Combined relevance+helpfulness score", allow_null=True
         ),
@@ -93,7 +93,7 @@ def index():
 @api.route("/query")
 class QueryEndpoint(Resource):
     @api.expect(query_model)
-    @api.marshal_with(llm_response_model)  # Primary response includes LLM metrics
+    @api.marshal_with(LLMQueryResponseModel)  # Documents the full response structure
     def post(self):
         """Ask for a Bible reference by natural‐language query"""
         user_query = api.payload.get("query")
@@ -120,7 +120,7 @@ class QueryEndpoint(Resource):
 
 @api.route("/random_psalm")
 class RandomPsalmEndpoint(Resource):
-    @api.marshal_with(simple_response_model)  # Uses the simpler model
+    @api.marshal_with(PassageResponseModel)  # Uses the model for passage responses
     def get(self):
         """Get a random curated powerful Psalm"""
         passage_text = bible_parser.get_random_psalm_passage()
