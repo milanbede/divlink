@@ -141,7 +141,7 @@
                 clearTimeout(idleTimerId);
                 promptLine.style.visibility = 'hidden';
 
-                fetch('/random_psalm')
+                fetch('/api/random_psalm')
                     .then(r => {
                         if (!r.ok) {
                             return r.json().then(errData => { throw new Error(errData.error || `Server error: ${r.status}`); })
@@ -199,7 +199,7 @@
                         ensureScrolling();
                         promptLine.style.visibility = 'hidden';
 
-                        fetch('/query', {
+                        fetch('/api/query', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ query: command }),
