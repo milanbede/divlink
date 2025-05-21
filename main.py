@@ -52,9 +52,7 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 # Initialize OpenAI client for OpenRouter
 if OPENROUTER_API_KEY:
-    client = OpenAI(
-        api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1"
-    )
+    client = OpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
 else:
     app.logger.error(
         "OPENROUTER_API_KEY not found in .env file. LLM functionality will be disabled."
