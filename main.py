@@ -20,7 +20,8 @@ api = Api(
     version="1.0",
     title="Bible Reference API",
     description="Ask for relevant Bible verses via LLM or fetch a random Psalm",
-    doc="/docs",  # Swagger UI served at /docs
+    prefix="/api",  # Set the API prefix
+    doc="/docs",  # Swagger UI served at /api/docs
 )
 
 query_model = api.model(
@@ -96,8 +97,8 @@ class QueryEndpoint(Resource):
             passage_text = bible_parser.get_random_psalm_passage()
             if passage_text is None:
                 fallback_verse = (
-                    "For God so loved the world that he gave his one and only Son, "
-                    "that whoever believes in him shall not perish but have eternal life. – John 3:16"
+                    "For God so loved the world, that he gave his only begotten Son, "
+                    "that whosoever believeth in him should not perish, but have everlasting life. – John 3:16"
                 )
                 return {"response": fallback_verse, "score": None}, 200
             return {"response": passage_text, "score": None}, 200
@@ -113,8 +114,8 @@ class RandomPsalmEndpoint(Resource):
         passage_text = bible_parser.get_random_psalm_passage()
         if passage_text is None:
             fallback_verse = (
-                "For God so loved the world that he gave his one and only Son, "
-                "that whoever believes in him shall not perish but have eternal life. – John 3:16"
+                "For God so loved the world, that he gave his only begotten Son, "
+                "that whosoever believeth in him should not perish, but have everlasting life. – John 3:16"
             )
             return {"response": fallback_verse, "score": None}, 200
         return {"response": passage_text, "score": None}, 200
