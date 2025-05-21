@@ -42,27 +42,6 @@ PassageResponseModel = api.model(
     },
 )
 
-# Model for responses from an LLM query, including the passage and performance metrics
-LLMQueryResponseModel = api.model(
-    "LLMQueryResponse",
-    {
-        "response": fields.String(
-            description="Bible passage text selected based on LLM output"
-        ),
-        "score": fields.Integer(
-            description="Combined relevance+helpfulness score", allow_null=True
-        ),
-        "latency_ms": fields.Float(description="LLM latency in ms", allow_null=True),
-        "prompt_tokens": fields.Integer(
-            description="Prompt token count", allow_null=True
-        ),
-        "completion_tokens": fields.Integer(
-            description="Completion token count", allow_null=True
-        ),
-    },
-)
-# --------------------------------
-
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 # Initialize OpenAI client for OpenRouter
@@ -95,7 +74,7 @@ def index():
 @api.route("/query")
 class QueryEndpoint(Resource):
     @api.expect(query_model)
-    @api.marshal_with(LLMQueryResponseModel)  # Documents the full response structure
+    @api.marshal_with(PassageResponseModel)  # Documents the full response structure
     def post(self):
         """Ask for a Bible reference by natural‐language query"""
         user_query = api.payload.get("query")
