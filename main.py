@@ -100,8 +100,20 @@ class QueryEndpoint(Resource):
                     "For God so loved the world, that he gave his only begotten Son, "
                     "that whosoever believeth in him should not perish, but have everlasting life. – John 3:16"
                 )
-                return {"response": fallback_verse, "score": None, "latency_ms": None, "prompt_tokens": None, "completion_tokens": None}, 200
-            return {"response": passage_text, "score": None, "latency_ms": None, "prompt_tokens": None, "completion_tokens": None}, 200
+                return {
+                    "response": fallback_verse,
+                    "score": None,
+                    "latency_ms": None,
+                    "prompt_tokens": None,
+                    "completion_tokens": None,
+                }, 200
+            return {
+                "response": passage_text,
+                "score": None,
+                "latency_ms": None,
+                "prompt_tokens": None,
+                "completion_tokens": None,
+            }, 200
 
         return result, status_code
 
@@ -117,8 +129,20 @@ class RandomPsalmEndpoint(Resource):
                 "For God so loved the world, that he gave his only begotten Son, "
                 "that whosoever believeth in him should not perish, but have everlasting life. – John 3:16"
             )
-            return {"response": fallback_verse, "score": None, "latency_ms": None, "prompt_tokens": None, "completion_tokens": None}, 200
-        return {"response": passage_text, "score": None, "latency_ms": None, "prompt_tokens": None, "completion_tokens": None}, 200
+            return {
+                "response": fallback_verse,
+                "score": None,
+                "latency_ms": None,
+                "prompt_tokens": None,
+                "completion_tokens": None,
+            }, 200
+        return {
+            "response": passage_text,
+            "score": None,
+            "latency_ms": None,
+            "prompt_tokens": None,
+            "completion_tokens": None,
+        }, 200
 
 
 if __name__ == "__main__":
