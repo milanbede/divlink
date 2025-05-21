@@ -1,10 +1,8 @@
 import os  # Still needed for FLASK_SECRET_KEY and os.urandom
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, session
+from flask_restx import Api, Resource, fields
 from dotenv import load_dotenv
-from openai import (
-    OpenAI,
-    # APIError, APIConnectionError, RateLimitError, APITimeoutError are now handled in LLMHandler
-)  # OpenAI SDK
+from openai import OpenAI
 from random_seeder import RandomSeeder
 from bible_parser import BibleParser
 from llm_handler import LLMHandler  # Import the new LLMHandler class
@@ -16,11 +14,47 @@ app.secret_key = os.getenv(
     "FLASK_SECRET_KEY", os.urandom(24)
 )  # Needed for session management
 
+# ---- Flask-RESTX API setup ----
+api = Api(
+    app,
+    version="1.0",
+    title="Bible Reference API",
+    description="Ask for relevant Bible verses via LLM or fetch a random Psalm",
+    doc="/docs",  # Swagger UI served at /docs
+)
+
+query_model = api.model(
+    "Query",
+    {
+        "query": fields.String(required=True, description="Your spiritual question"),
+    },
+)
+
+response_model = api.model(
+    "LLMResponse",
+    {
+        "response": fields.String(description="Bible passage text"),
+        "score": fields.Integer(
+            description="Combined relevance+helpfulness score", allow_null=True
+        ),
+        "latency_ms": fields.Float(description="LLM latency in ms", allow_null=True),
+        "prompt_tokens": fields.Integer(
+            description="Prompt token count", allow_null=True
+        ),
+        "completion_tokens": fields.Integer(
+            description="Completion token count", allow_null=True
+        ),
+    },
+)
+# --------------------------------
+
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 # Initialize OpenAI client for OpenRouter
 if OPENROUTER_API_KEY:
-    client = OpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
+    client = OpenAI(
+        api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1"
+    )
 else:
     app.logger.error(
         "OPENROUTER_API_KEY not found in .env file. LLM functionality will be disabled."
@@ -45,57 +79,41 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/query", methods=["POST"])
-def query_llm():
-    user_query = request.json.get("query")
-    if not user_query:
-        return jsonify({"error": "No query provided."}), 400
+@api.route("/query")
+class QueryEndpoint(Resource):
+    @api.expect(query_model)
+    @api.marshal_with(response_model)
+    def post(self):
+        """Ask for a Bible reference by natural‐language query"""
+        user_query = api.payload.get("query")
+        if not user_query:
+            api.abort(400, "No query provided.")
 
-    # Delegate to LLMHandler
-    # The handler will manage session history internally.
-    result, status_code = llm_handler.get_llm_bible_reference(session, user_query)
+        result, status_code = llm_handler.get_llm_bible_reference(session, user_query)
 
-    if status_code != 200:
-        app.logger.error(
-            f"LLM query failed with status {status_code}. Error: {result.get('error', 'Unknown error')}. Serving a random psalm or fallback."
-        )
+        if status_code != 200:
+            app.logger.error(
+                f"LLM query failed (status {status_code}), falling back to random Psalm."
+            )
+            passage_text = bible_parser.get_random_psalm_passage()
+            if passage_text is None:
+                fallback_verse = "For God so loved the world... – John 3:16"
+                return {"response": fallback_verse, "score": None}, 200
+            return {"response": passage_text, "score": None}, 200
+
+        return result, status_code
+
+
+@api.route("/random_psalm")
+class RandomPsalmEndpoint(Resource):
+    @api.marshal_with(response_model)
+    def get(self):
+        """Get a random curated powerful Psalm"""
         passage_text = bible_parser.get_random_psalm_passage()
         if passage_text is None:
-            app.logger.error(
-                "Failed to retrieve a random Psalm for fallback. Serving a hardcoded verse."
-            )
-            fallback_verse = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n- John 3:16"
-            return jsonify({"response": fallback_verse, "score": None}), 200
-        else:
-            app.logger.info(
-                "Successfully served a random Psalm as fallback to failed LLM query."
-            )
-            return jsonify({"response": passage_text, "score": None}), 200
-
-    return jsonify(result), status_code
-
-
-# The main LLM interaction logic, including prompt definition, history management,
-# API calls, retries, JSON parsing, and error handling, has been moved to LLMHandler.
-# The old try block content is now inside the loop in the REPLACE section above.
-# This SEARCH block is to remove the old structure.
-# The outer exception handlers (HTTPError, RequestException, etc.) are now part of the loop structure.
-
-
-@app.route("/random_psalm", methods=["GET"])
-def random_psalm():
-    passage_text = bible_parser.get_random_psalm_passage()
-
-    if passage_text is None:
-        app.logger.error("Failed to retrieve a random Psalm. Serving a fallback verse.")
-        fallback_verse = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n- John 3:16"
-        return jsonify({"response": fallback_verse, "score": None}), 200
-
-    # If no error, passage_text contains the Psalm
-    # The logger message for success is now inside BibleParser.get_random_psalm_passage()
-    return jsonify(
-        {"response": passage_text, "score": None}
-    )  # Score is null as it's not an LLM eval
+            fallback_verse = "For God so loved the world... – John 3:16"
+            return {"response": fallback_verse, "score": None}, 200
+        return {"response": passage_text, "score": None}, 200
 
 
 if __name__ == "__main__":
