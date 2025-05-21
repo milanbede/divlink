@@ -31,7 +31,19 @@ query_model = api.model(
     },
 )
 
-response_model = api.model(
+# Model for responses that only include the text and a score (e.g., random psalm, fallbacks)
+simple_response_model = api.model(
+    "SimpleResponse",
+    {
+        "response": fields.String(description="Bible passage text"),
+        "score": fields.Integer(
+            description="Combined relevance+helpfulness score", allow_null=True
+        ),
+    },
+)
+
+# Model for full LLM responses including performance metrics
+llm_response_model = api.model(
     "LLMResponse",
     {
         "response": fields.String(description="Bible passage text"),
@@ -81,7 +93,7 @@ def index():
 @api.route("/query")
 class QueryEndpoint(Resource):
     @api.expect(query_model)
-    @api.marshal_with(response_model)
+    @api.marshal_with(llm_response_model) # Primary response includes LLM metrics
     def post(self):
         """Ask for a Bible reference by natural‐language query"""
         user_query = api.payload.get("query")
@@ -100,27 +112,15 @@ class QueryEndpoint(Resource):
                     "For God so loved the world, that he gave his only begotten Son, "
                     "that whosoever believeth in him should not perish, but have everlasting life. – John 3:16"
                 )
-                return {
-                    "response": fallback_verse,
-                    "score": None,
-                    "latency_ms": None,
-                    "prompt_tokens": None,
-                    "completion_tokens": None,
-                }, 200
-            return {
-                "response": passage_text,
-                "score": None,
-                "latency_ms": None,
-                "prompt_tokens": None,
-                "completion_tokens": None,
-            }, 200
+                return {"response": fallback_verse, "score": None}, 200
+            return {"response": passage_text, "score": None}, 200
 
         return result, status_code
 
 
 @api.route("/random_psalm")
 class RandomPsalmEndpoint(Resource):
-    @api.marshal_with(response_model)
+    @api.marshal_with(simple_response_model) # Uses the simpler model
     def get(self):
         """Get a random curated powerful Psalm"""
         passage_text = bible_parser.get_random_psalm_passage()
@@ -129,20 +129,8 @@ class RandomPsalmEndpoint(Resource):
                 "For God so loved the world, that he gave his only begotten Son, "
                 "that whosoever believeth in him should not perish, but have everlasting life. – John 3:16"
             )
-            return {
-                "response": fallback_verse,
-                "score": None,
-                "latency_ms": None,
-                "prompt_tokens": None,
-                "completion_tokens": None,
-            }, 200
-        return {
-            "response": passage_text,
-            "score": None,
-            "latency_ms": None,
-            "prompt_tokens": None,
-            "completion_tokens": None,
-        }, 200
+            return {"response": fallback_verse, "score": None}, 200
+        return {"response": passage_text, "score": None}, 200
 
 
 if __name__ == "__main__":
