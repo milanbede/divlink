@@ -46,7 +46,9 @@ PassageResponseModel = api.model(
 LLMQueryResponseModel = api.model(
     "LLMQueryResponse",
     {
-        "response": fields.String(description="Bible passage text selected based on LLM output"),
+        "response": fields.String(
+            description="Bible passage text selected based on LLM output"
+        ),
         "score": fields.Integer(
             description="Combined relevance+helpfulness score", allow_null=True
         ),
