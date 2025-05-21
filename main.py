@@ -95,7 +95,10 @@ class QueryEndpoint(Resource):
             )
             passage_text = bible_parser.get_random_psalm_passage()
             if passage_text is None:
-                fallback_verse = "For God so loved the world... – John 3:16"
+                fallback_verse = (
+                    "For God so loved the world that he gave his one and only Son, "
+                    "that whoever believes in him shall not perish but have eternal life. – John 3:16"
+                )
                 return {"response": fallback_verse, "score": None}, 200
             return {"response": passage_text, "score": None}, 200
 
@@ -109,7 +112,10 @@ class RandomPsalmEndpoint(Resource):
         """Get a random curated powerful Psalm"""
         passage_text = bible_parser.get_random_psalm_passage()
         if passage_text is None:
-            fallback_verse = "For God so loved the world... – John 3:16"
+            fallback_verse = (
+                "For God so loved the world that he gave his one and only Son, "
+                "that whoever believes in him shall not perish but have eternal life. – John 3:16"
+            )
             return {"response": fallback_verse, "score": None}, 200
         return {"response": passage_text, "score": None}, 200
 
