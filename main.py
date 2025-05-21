@@ -93,7 +93,7 @@ def index():
 @api.route("/query")
 class QueryEndpoint(Resource):
     @api.expect(query_model)
-    @api.marshal_with(llm_response_model) # Primary response includes LLM metrics
+    @api.marshal_with(llm_response_model)  # Primary response includes LLM metrics
     def post(self):
         """Ask for a Bible reference by natural‐language query"""
         user_query = api.payload.get("query")
@@ -120,7 +120,7 @@ class QueryEndpoint(Resource):
 
 @api.route("/random_psalm")
 class RandomPsalmEndpoint(Resource):
-    @api.marshal_with(simple_response_model) # Uses the simpler model
+    @api.marshal_with(simple_response_model)  # Uses the simpler model
     def get(self):
         """Get a random curated powerful Psalm"""
         passage_text = bible_parser.get_random_psalm_passage()
