@@ -61,7 +61,7 @@
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
-    font-family: 'Lucida Console', Monaco, 'Courier New', monospace;
+    font-family: 'IBM Plex Mono', 'Lucida Console', Monaco, 'Courier New', monospace;
     margin: 0;
     padding: 20px;
     font-size: 16px;
