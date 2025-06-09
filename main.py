@@ -114,5 +114,21 @@ class RandomPsalmEndpoint(Resource):
         return {"response": passage_text, "score": None}, 200
 
 
+@api.route("/verse_of_the_day")
+class VerseOfTheDayEndpoint(Resource):
+    @api.marshal_with(PassageResponseModel)
+    def get(self):
+        """Get a random verse from any book of the Bible"""
+        verse_text = bible_parser.get_random_verse()
+        if verse_text is None:
+            # Fallback if get_random_verse fails for any reason (e.g., data not loaded, empty book/chapter)
+            app.logger.info("get_random_verse() returned None, using fallback verse.")
+            fallback_verse = (
+                "In the beginning God created the heaven and the earth. - Genesis 1:1"
+            )
+            return {"response": fallback_verse, "score": None}, 200
+        return {"response": verse_text, "score": None}, 200
+
+
 if __name__ == "__main__":
     app.run(debug=True)

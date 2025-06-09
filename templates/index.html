@@ -43,6 +43,43 @@
             const textMeasurer = document.getElementById('textMeasurer');
             const promptLine = commandInput.parentElement;
 
+            function showVerseOfTheDay() {
+                promptLine.style.visibility = 'hidden'; // Hide prompt while MOTD loads
+
+                fetch('/api/verse_of_the_day')
+                    .then(response => {
+                        if (!response.ok) {
+                            // Try to parse error from server, otherwise use status text
+                            return response.json().then(errData => { throw new Error(errData.message || errData.error || `Server error: ${response.status}`); })
+                                       .catch(() => { throw new Error(`Server error: ${response.status}`); });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        const verseText = data.response || "Could not retrieve the Verse of the Day at this moment.";
+                        // MOTD doesn't have a score, so pass null
+                        typeResponse(linkifyVerses(verseText), outputDiv, null, () => {
+                            outputDiv.appendChild(document.createElement('br'));
+                            promptLine.style.visibility = 'visible';
+                            ensureScrolling();
+                            commandInput.focus();
+                            updateCursorPosition();
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching Verse of the Day:', error);
+                        const errorElement = document.createElement('div');
+                        errorElement.textContent = `Error: Could not load Verse of the Day. ${error.message || 'Please try refreshing.'}`;
+                        errorElement.style.color = 'red'; // Or use a class for styling errors
+                        outputDiv.appendChild(errorElement);
+                        outputDiv.appendChild(document.createElement('br'));
+                        promptLine.style.visibility = 'visible';
+                        ensureScrolling();
+                        commandInput.focus();
+                        updateCursorPosition();
+                    });
+            }
+
             // Wrap references like "Sirach 1:2-7" in a BibleGateway link
             function linkifyVerses(text) {
                 const version = 'NRSVCE';
@@ -190,6 +227,8 @@
             resetIdleTimer();
 
             commandInput.addEventListener('keydown', function(event) {
+                resetIdleTimer(); // This was accidentally removed, should be here
+                if (event.key === 'Enter') {
                 if (event.key === 'Enter') {
                     clearTimeout(idleTimerId);
                     event.preventDefault();
@@ -345,6 +384,11 @@
                      .replace(/"/g, "&quot;")
                      .replace(/'/g, "&#039;");
             }
+
+            // Call Verse of the Day on page load
+            showVerseOfTheDay();
+
+            resetIdleTimer();
 
             // Only focus input when there’s no active selection on terminal
             document.getElementById('terminal').addEventListener('click', (event) => {

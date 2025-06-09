@@ -367,3 +367,84 @@ class BibleParser:
             f"Successfully retrieved curated powerful Psalm: {psalms_book_data['name']} {random_chapter_num}"
         )
         return passage_text
+
+    def get_random_verse(self):
+        """Retrieves a random verse from a random book and chapter."""
+        if not self.is_data_loaded():
+            self.logger.error("Cannot get random verse, Bible book index not loaded.")
+            return None
+
+        # Get unique canonical book names
+        # self.book_map values are the canonical names (e.g., "Genesis")
+        canonical_book_names = list(set(self.book_map.values()))
+
+        if not canonical_book_names:
+            self.logger.error("No canonical book names available to select a random verse.")
+            return None
+
+        random_book_canonical_name = random.choice(canonical_book_names)
+        self.logger.info(f"Randomly selected book: {random_book_canonical_name}")
+
+        book_file_path = os.path.join(
+            self.books_dir_path, f"{random_book_canonical_name}.json"
+        )
+
+        try:
+            with open(book_file_path, "r", encoding="utf-8") as f:
+                book_data = json.load(f)
+        except FileNotFoundError:
+            self.logger.error(
+                f"Data file for randomly selected book '{random_book_canonical_name}' not found at {book_file_path}."
+            )
+            return None
+        except json.JSONDecodeError:
+            self.logger.error(
+                f"Error decoding JSON for book '{random_book_canonical_name}' from {book_file_path}."
+            )
+            return None
+        except Exception as e:
+            self.logger.error(
+                f"Unexpected error loading book data for '{random_book_canonical_name}' from {book_file_path}: {e}"
+            )
+            return None
+
+        if "name" not in book_data or "chapters" not in book_data:
+            self.logger.error(f"Book data for '{random_book_canonical_name}' is missing 'name' or 'chapters' field.")
+            return None
+
+        book_name_display = book_data["name"] # For the parsed_ref
+
+        if not book_data["chapters"]:
+            self.logger.error(
+                f"Book '{book_name_display}' has no chapters listed."
+            )
+            return None
+
+        random_chapter_index = random.randrange(len(book_data["chapters"]))
+        # Chapter numbers are 1-based, index is 0-based
+        random_chapter_num = random_chapter_index + 1
+
+        verses_in_chapter = book_data["chapters"][random_chapter_index]
+
+        if not verses_in_chapter:
+            self.logger.error(
+                f"Chapter {random_chapter_num} in book '{book_name_display}' has no verses."
+            )
+            return None
+
+        random_verse_index = random.randrange(len(verses_in_chapter))
+        # Verse numbers are 1-based, index is 0-based
+        random_verse_num = random_verse_index + 1
+
+        self.logger.info(
+            f"Selected random verse: {book_name_display} {random_chapter_num}:{random_verse_num}"
+        )
+
+        parsed_ref = {
+            "book_name": book_name_display,  # Use the display name from the loaded book_data
+            "chapter": random_chapter_num,
+            "start_verse": random_verse_num,
+            "end_verse": random_verse_num,
+        }
+
+        return self.get_passage(parsed_ref)
