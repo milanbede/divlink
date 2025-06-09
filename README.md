@@ -13,7 +13,7 @@ Divine Link is your personalized gateway to Scripture, crafted to bring solace t
 -[ ] Offline version to avoid sending data.
 -[ ] Apps for Android/iOS.
 
-### [Live Demo](https://bible.bedeai.com)
+### [Live Demo](https://bible.vibefare.com)
 
 ## How It Works
 1. Pour out your heart: Type in your thoughts, struggles, or questions.
