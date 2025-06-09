@@ -8,8 +8,8 @@ Divine Link is your personalized gateway to Scripture, crafted to bring solace t
 -[x] Random Psalm: Draw daily inspiration from the timeless poetry of the Psalms.
 -[x] Lightweight, hassle-free experience: No installation—just open your browser and begin your journey.
 -[ ] ~~Interpretation of God's word by a machine.~~ No, just the Word itself.
+-[x] API for integration into third-party sites.
 -[ ] Semantic caching to speed it up.
--[ ] API for integration into third-party sites.
 -[ ] Offline version to avoid sending data.
 -[ ] Apps for Android/iOS.
 
