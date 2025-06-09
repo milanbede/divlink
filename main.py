@@ -8,6 +8,7 @@ from openai import OpenAI
 from random_seeder import RandomSeeder
 from bible_parser import BibleParser
 from llm_handler import LLMHandler  # Import the new LLMHandler class
+from x_poster import XPoster # Import XPoster
 
 load_dotenv()  # Load variables from .env file
 
@@ -66,6 +67,9 @@ bible_parser = BibleParser(app.logger)
 llm_handler = LLMHandler(
     client, app.logger, bible_parser, "deepseek/deepseek-chat-v3-0324:free"
 )
+
+# Initialize XPoster
+x_poster = XPoster()
 
 
 @app.route("/")
@@ -159,25 +163,47 @@ class VerseOfTheDayEndpoint(Resource):
 
             if status_code == 200 and result.get('response'):
                 app.logger.info(f"Successfully fetched verse of the day from LLM: {result.get('response')[:100]}...")
+                verse_to_tweet = result.get('response')
+                # Attempt to post to X
+                if x_poster.post_tweet(verse_to_tweet):
+                    app.logger.info("Verse of the day posted to X successfully.")
+                else:
+                    app.logger.error("Failed to post verse of the day to X.")
                 return result, 200
             else:
                 error_msg = result.get('error', 'Unknown error from LLM')
                 app.logger.error(f"LLM query for verse of the day failed (status {status_code}, error: {error_msg}). Falling back.")
                 # Fallback logic:
-                verse_text = bible_parser.get_random_verse()
-                if verse_text is None:
+                verse_to_tweet = bible_parser.get_random_verse()
+                if verse_to_tweet is None:
                     app.logger.info("Fallback get_random_verse() returned None, using ultimate fallback verse.")
-                    fallback_verse = "In the beginning God created the heaven and the earth. - Genesis 1:1"
-                    return {"response": fallback_verse, "score": None}, 200
-                app.logger.info(f"Fallback random verse: {verse_text[:100]}...")
-                return {"response": verse_text, "score": None}, 200
+                    verse_to_tweet = "In the beginning God created the heaven and the earth. - Genesis 1:1"
+                    # Attempt to post ultimate fallback verse to X
+                    if x_poster.post_tweet(verse_to_tweet):
+                        app.logger.info("Ultimate fallback verse of the day posted to X successfully.")
+                    else:
+                        app.logger.error("Failed to post ultimate fallback verse of the day to X.")
+                    return {"response": verse_to_tweet, "score": None}, 200
+
+                # Attempt to post fallback verse to X
+                if x_poster.post_tweet(verse_to_tweet):
+                    app.logger.info("Fallback random verse of the day posted to X successfully.")
+                else:
+                    app.logger.error("Failed to post fallback random verse of the day to X.")
+                app.logger.info(f"Fallback random verse: {verse_to_tweet[:100]}...")
+                return {"response": verse_to_tweet, "score": None}, 200
 
         except Exception as e:
             app.logger.error(f"Unexpected error in VerseOfTheDayEndpoint: {e}", exc_info=True)
             # Ultimate fallback in case of any unexpected error
             app.logger.info("Unexpected error, using ultimate fallback verse.")
-            fallback_verse = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. – John 3:16"
-            return {"response": fallback_verse, "score": None}, 500
+            verse_to_tweet = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. – John 3:16"
+            # Attempt to post this fallback to X as well
+            if x_poster.post_tweet(verse_to_tweet):
+                app.logger.info("General error fallback verse posted to X successfully.")
+            else:
+                app.logger.error("Failed to post general error fallback verse to X.")
+            return {"response": verse_to_tweet, "score": None}, 500
 
 
 if __name__ == "__main__":
