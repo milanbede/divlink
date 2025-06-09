@@ -1,7 +1,8 @@
 import unittest
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch, MagicMock # Ensure patch and MagicMock are imported
 import os
 import json
+import datetime # Add this if not already present at the top of test_unit.py
 import re # Added import re at the top level
 from main import app  # Import the Flask app
 from bible_parser import BibleParser
@@ -153,44 +154,126 @@ class TestBibleParserUnit(unittest.TestCase):
 class TestApiUnit(unittest.TestCase):
     def setUp(self):
         self.app_context = app.app_context()
-        self.app_context.push() # Push an app context for the tests
+        self.app_context.push()
         self.client = app.test_client()
-        app.testing = True # Enable testing mode
+        app.testing = True
 
-        # Mock BibleParser for API tests to avoid file I/O and ensure predictable behavior
-        # Create a MagicMock instance that can be configured for each test
         self.mock_bible_parser_instance = MagicMock(spec=BibleParser)
+        self.patcher_bible_parser = patch('main.bible_parser', self.mock_bible_parser_instance)
+        self.patcher_bible_parser.start()
 
-        # Patch the global 'bible_parser' instance in 'main.py'
-        self.patcher = patch('main.bible_parser', self.mock_bible_parser_instance)
-        self.patcher.start()
+        # Add new mock for llm_handler.get_llm_bible_reference
+        self.mock_llm_get_reference = MagicMock()
+        self.patcher_llm_handler = patch('main.llm_handler.get_llm_bible_reference', self.mock_llm_get_reference)
+        self.patcher_llm_handler.start()
+
+        # Mock for holidays.CountryHoliday
+        self.mock_holidays_instance = MagicMock()
+        self.patcher_holidays = patch('main.holidays.CountryHoliday', return_value=self.mock_holidays_instance) # Patch the class
+        self.patcher_holidays.start()
+
+        # Mock for datetime.date.today
+        self.mock_datetime_today = patch('main.datetime.date') # Patch date class in main
+        self.mock_date_today_instance = self.mock_datetime_today.start()
 
     def tearDown(self):
-        self.patcher.stop()
-        self.app_context.pop() # Pop the app context
+        self.patcher_bible_parser.stop()
+        self.patcher_llm_handler.stop() # Stop the new patcher
+        self.patcher_holidays.stop()
+        self.mock_datetime_today.stop()
+        self.app_context.pop()
 
-    def test_verse_of_the_day_success(self):
-        expected_verse = "Test Book 1:1\nThis is a test verse."
-        self.mock_bible_parser_instance.get_random_verse.return_value = expected_verse
+    # Remove or comment out old test_verse_of_the_day_success and test_verse_of_the_day_fallback
+
+    def test_verse_of_the_day_success_no_holiday(self):
+        # Mock date and holiday
+        fixed_date = datetime.date(2023, 10, 26)
+        self.mock_date_today_instance.today.return_value = fixed_date
+        self.mock_holidays_instance.get.return_value = None # No holiday
+
+        # Mock LLM response
+        expected_llm_response = {"response": "LLM verse for October 26, 2023.", "score": 10}
+        self.mock_llm_get_reference.return_value = (expected_llm_response, 200)
 
         response = self.client.get('/api/verse_of_the_day')
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.data.decode('utf-8'))
-        self.assertEqual(data['response'], expected_verse)
-        self.assertIsNone(data['score'])
-        self.mock_bible_parser_instance.get_random_verse.assert_called_once()
+        self.assertEqual(data['response'], expected_llm_response['response'])
+        self.assertEqual(data['score'], expected_llm_response['score'])
 
-    def test_verse_of_the_day_fallback(self):
-        self.mock_bible_parser_instance.get_random_verse.return_value = None # Simulate error
+        expected_query = "Select a single verse from the King James Bible that offers strength, hope, or encouragement for October 26, 2023."
+        self.mock_llm_get_reference.assert_called_once()
+        # Assuming session object is passed as first arg, query is second.
+        # Access the call arguments: args, kwargs = self.mock_llm_get_reference.call_args
+        # args[1] should be the query
+        self.assertEqual(self.mock_llm_get_reference.call_args[0][1], expected_query)
+        self.mock_holidays_instance.get.assert_called_once_with(fixed_date)
+
+    def test_verse_of_the_day_success_with_holiday(self):
+        fixed_date = datetime.date(2023, 12, 25) # Christmas
+        self.mock_date_today_instance.today.return_value = fixed_date
+        self.mock_holidays_instance.get.return_value = "Christmas Day" # Holiday
+
+        expected_llm_response = {"response": "LLM verse for Christmas.", "score": 10}
+        self.mock_llm_get_reference.return_value = (expected_llm_response, 200)
 
         response = self.client.get('/api/verse_of_the_day')
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.data.decode('utf-8'))
-        # The fallback verse is defined in main.py
-        expected_fallback = "In the beginning God created the heaven and the earth. - Genesis 1:1"
-        self.assertEqual(data['response'], expected_fallback)
+        self.assertEqual(data['response'], expected_llm_response['response'])
+
+        expected_query = "Select a single verse from the King James Bible that offers strength, hope, or encouragement for December 25, 2023, especially considering today is Christmas Day."
+        self.mock_llm_get_reference.assert_called_once()
+        self.assertEqual(self.mock_llm_get_reference.call_args[0][1], expected_query)
+        self.mock_holidays_instance.get.assert_called_once_with(fixed_date)
+
+    def test_verse_of_the_day_llm_failure_fallback_to_random_verse(self):
+        fixed_date = datetime.date(2023, 10, 27)
+        self.mock_date_today_instance.today.return_value = fixed_date
+        self.mock_holidays_instance.get.return_value = None
+
+        # Mock LLM failure
+        self.mock_llm_get_reference.return_value = ({"error": "LLM down"}, 500)
+
+        # Mock bible_parser's get_random_verse
+        expected_random_verse = "Random verse from parser."
+        self.mock_bible_parser_instance.get_random_verse.return_value = expected_random_verse
+
+        response = self.client.get('/api/verse_of_the_day')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data.decode('utf-8'))
+        self.assertEqual(data['response'], expected_random_verse)
         self.assertIsNone(data['score'])
+        self.mock_llm_get_reference.assert_called_once()
         self.mock_bible_parser_instance.get_random_verse.assert_called_once()
+
+    def test_verse_of_the_day_llm_failure_and_random_verse_failure_ultimate_fallback(self):
+        fixed_date = datetime.date(2023, 10, 28)
+        self.mock_date_today_instance.today.return_value = fixed_date
+        self.mock_holidays_instance.get.return_value = None
+
+        self.mock_llm_get_reference.return_value = ({"error": "LLM down"}, 500)
+        self.mock_bible_parser_instance.get_random_verse.return_value = None # Simulate failure
+
+        response = self.client.get('/api/verse_of_the_day')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data.decode('utf-8'))
+        expected_fallback_verse = "In the beginning God created the heaven and the earth. - Genesis 1:1"
+        self.assertEqual(data['response'], expected_fallback_verse)
+        self.assertIsNone(data['score'])
+        self.mock_llm_get_reference.assert_called_once()
+        self.mock_bible_parser_instance.get_random_verse.assert_called_once()
+
+    def test_verse_of_the_day_unexpected_exception_fallback(self):
+        # Make one of the internal calls raise an unexpected exception
+        self.mock_date_today_instance.today.side_effect = Exception("Unexpected error in date")
+
+        response = self.client.get('/api/verse_of_the_day')
+        self.assertEqual(response.status_code, 500) # Should be 500 as per endpoint's catch-all
+        data = json.loads(response.data.decode('utf-8'))
+        expected_fallback_verse = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. – John 3:16"
+        self.assertEqual(data['response'], expected_fallback_verse)
+        self.assertIsNone(data['score'])
 
     def test_random_psalm_success(self):
         expected_psalm = "Psalm 23:1\nThe LORD is my shepherd..."

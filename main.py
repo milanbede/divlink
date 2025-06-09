@@ -1,4 +1,6 @@
 import os  # Still needed for FLASK_SECRET_KEY and os.urandom
+import datetime
+import holidays
 from flask import Flask, render_template, session
 from flask_restx import Api, Resource, fields
 from dotenv import load_dotenv
@@ -118,16 +120,64 @@ class RandomPsalmEndpoint(Resource):
 class VerseOfTheDayEndpoint(Resource):
     @api.marshal_with(PassageResponseModel)
     def get(self):
-        """Get a random verse from any book of the Bible"""
-        verse_text = bible_parser.get_random_verse()
-        if verse_text is None:
-            # Fallback if get_random_verse fails for any reason (e.g., data not loaded, empty book/chapter)
-            app.logger.info("get_random_verse() returned None, using fallback verse.")
-            fallback_verse = (
-                "In the beginning God created the heaven and the earth. - Genesis 1:1"
-            )
-            return {"response": fallback_verse, "score": None}, 200
-        return {"response": verse_text, "score": None}, 200
+        """Get a verse of the day, querying LLM based on current date and holidays."""
+        try:
+            today = datetime.date.today()
+            # For simplicity, using US holidays. This could be made configurable.
+            # Also, note that most Christian holidays recognized by the 'holidays' library
+            # are based on Western Christian traditions by default.
+            # Common non-country specific Christian holidays are often part of general Christian calendars.
+            # For broader Christian holiday coverage, one might need a more specialized calendar
+            # or check multiple country calendars if the user base is diverse.
+            # Example: us_holidays = holidays.US()
+            # Example: ChristianHolidays = holidays.registry.ChristianHolidays # This might not be directly usable as a class
+
+            # Let's try a specific country known for observing many Christian holidays,
+            # or rely on a common set if available.
+            # For now, we'll use a placeholder for holiday checking.
+            # A more robust solution would involve selecting an appropriate calendar.
+            # For example, holidays.CountryHoliday('US', prov=None, state=None, years=today.year)
+            # Some holiday libraries allow creating custom holiday sets.
+
+            # Using a specific country's calendar that includes Christian holidays:
+            # For example, Poland (PL) has many Christian holidays.
+            country_holidays = holidays.CountryHoliday('PL', years=today.year) # Using Poland as an example for Christian holidays
+
+            today_str = today.strftime("%B %d, %Y")
+            holiday_name = country_holidays.get(today)
+
+            query = f"Select a single verse from the King James Bible that offers strength, hope, or encouragement for {today_str}"
+            if holiday_name:
+                query += f", especially considering today is {holiday_name}."
+            else:
+                query += "."
+
+            app.logger.info(f"Constructed Verse of the Day query: {query}")
+
+            # Ensure llm_handler and session are available as they are in other endpoints
+            result, status_code = llm_handler.get_llm_bible_reference(session, query)
+
+            if status_code == 200 and result.get('response'):
+                app.logger.info(f"Successfully fetched verse of the day from LLM: {result.get('response')[:100]}...")
+                return result, 200
+            else:
+                error_msg = result.get('error', 'Unknown error from LLM')
+                app.logger.error(f"LLM query for verse of the day failed (status {status_code}, error: {error_msg}). Falling back.")
+                # Fallback logic:
+                verse_text = bible_parser.get_random_verse()
+                if verse_text is None:
+                    app.logger.info("Fallback get_random_verse() returned None, using ultimate fallback verse.")
+                    fallback_verse = "In the beginning God created the heaven and the earth. - Genesis 1:1"
+                    return {"response": fallback_verse, "score": None}, 200
+                app.logger.info(f"Fallback random verse: {verse_text[:100]}...")
+                return {"response": verse_text, "score": None}, 200
+
+        except Exception as e:
+            app.logger.error(f"Unexpected error in VerseOfTheDayEndpoint: {e}", exc_info=True)
+            # Ultimate fallback in case of any unexpected error
+            app.logger.info("Unexpected error, using ultimate fallback verse.")
+            fallback_verse = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. – John 3:16"
+            return {"response": fallback_verse, "score": None}, 500
 
 
 if __name__ == "__main__":
