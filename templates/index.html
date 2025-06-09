@@ -329,7 +329,7 @@
                             }
                         }
                         i += consumedLength;
-                        terminalDiv.scrollTop = terminalDiv.scrollHeight;
+                        terminalDiv.scrollTop = terminalDiv.scrollHeight - terminalDiv.clientHeight;
                         setTimeout(typeChar, typingSpeed);
                     } else {
                         if (callback) callback();

@@ -75,8 +75,8 @@ body {
 
 #terminal {
     /* add horizontal padding so divine-name glow isn’t clipped at the edges */
-    padding: 0 8px var(--statusbar-height) 8px; /* Added padding-bottom for status bar */
-    height: calc(100vh - 40px);
+    padding: 0 8px var(--statusbar-height) 8px; /* Padding-bottom for status bar */
+    height: calc(100vh - 40px - var(--statusbar-height)); /* Adjusted height for status bar */
     overflow-x: visible;
     overflow-y: auto;
     position: relative; /* Ensures status bar is positioned relative to terminal */
@@ -89,7 +89,7 @@ body {
     top: 20px;
     left: 20px;
     right: 20px;
-    bottom: 20px;
+    bottom: calc(20px + var(--statusbar-height)); /* Adjusted bottom for status bar */
     background: repeating-linear-gradient(
         0deg,
         var(--scanline-rgba),
