@@ -33,6 +33,7 @@
             <span class="username">seeker</span><span class="prompt">&gt;</span>
             <input type="text" id="commandInput" autofocus><span id="customCursor"></span>
         </div>
+        <div id="statusBar">This site uses session cookies.</div>
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -328,7 +329,7 @@
                             }
                         }
                         i += consumedLength;
-                        terminalDiv.scrollTop = terminalDiv.scrollHeight;
+                        terminalDiv.scrollTop = terminalDiv.scrollHeight - terminalDiv.clientHeight;
                         setTimeout(typeChar, typingSpeed);
                     } else {
                         if (callback) callback();

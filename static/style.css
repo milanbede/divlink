@@ -28,6 +28,11 @@
           0 0 10px #ffecb3,
           0 0 18px var(--perfect-score-color),
           0 0 25px var(--divine-name-perfect-color);
+
+    /* Status Bar variables */
+    --statusbar-height: 1.6em;
+    --statusbar-bg-color: var(--text-color); /* Will be green in dark, dark grey in light */
+    --statusbar-text-color: var(--bg-color); /* Will be black in dark, white in light */
 }
 
 @media (prefers-color-scheme: light) {
@@ -70,11 +75,11 @@ body {
 
 #terminal {
     /* add horizontal padding so divine-name glow isn’t clipped at the edges */
-    padding: 0 8px;
-    height: calc(100vh - 40px);
+    padding: 0 8px var(--statusbar-height) 8px; /* Padding-bottom for status bar */
+    height: calc(100vh - 40px - var(--statusbar-height)); /* Adjusted height for status bar */
     overflow-x: visible;
     overflow-y: auto;
-    position: relative;
+    position: relative; /* Ensures status bar is positioned relative to terminal */
 }
 
 /* Scanline effect */
@@ -84,7 +89,7 @@ body {
     top: 20px;
     left: 20px;
     right: 20px;
-    bottom: 20px;
+    bottom: calc(20px + var(--statusbar-height)); /* Adjusted bottom for status bar */
     background: repeating-linear-gradient(
         0deg,
         var(--scanline-rgba),
@@ -94,6 +99,23 @@ body {
     );
     pointer-events: none;
     z-index: 1;
+}
+
+#statusBar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--statusbar-height);
+    background-color: var(--statusbar-bg-color);
+    color: var(--statusbar-text-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9em;
+    padding: 0 8px; /* Horizontal padding for text inside status bar */
+    z-index: 2; /* Above scanlines, same level as output/prompt */
+    user-select: none; /* Status bar text usually not selectable */
 }
 
 #output div {
