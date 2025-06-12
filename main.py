@@ -4,7 +4,9 @@ import holidays
 from flask import Flask, render_template, session
 from flask_restx import Api, Resource, fields
 from dotenv import load_dotenv
+from google.cloud import firestore # Add Firestore import
 from openai import OpenAI
+from sentence_transformers import SentenceTransformer # Add SentenceTransformer import
 from random_seeder import RandomSeeder
 from bible_parser import BibleParser
 from llm_handler import LLMHandler  # Import the new LLMHandler class
@@ -56,6 +58,22 @@ else:
     )
     client = None  # Explicitly set client to None if key is missing
 
+# Initialize Firestore client
+try:
+    db = firestore.Client()
+    app.logger.info("Firestore client initialized successfully.")
+except Exception as e:
+    app.logger.error(f"Failed to initialize Firestore client: {e}", exc_info=True)
+    db = None # Ensure db is None if initialization fails
+
+# Initialize Sentence Transformer model
+try:
+    embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+    app.logger.info("SentenceTransformer model initialized successfully.")
+except Exception as e:
+    app.logger.error(f"Failed to initialize SentenceTransformer model: {e}", exc_info=True)
+    embedding_model = None # Ensure embedding_model is None if initialization fails
+
 # Initialize the random number generator at application startup
 seeder = RandomSeeder(app.logger)
 seeder.initialize_seeding()
@@ -65,7 +83,7 @@ bible_parser = BibleParser(app.logger)
 
 # Initialize LLMHandler
 llm_handler = LLMHandler(
-    client, app.logger, bible_parser, "deepseek/deepseek-chat-v3-0324:free"
+    client, app.logger, bible_parser, "deepseek/deepseek-chat-v3-0324:free", db, embedding_model
 )
 
 # Initialize XPoster
@@ -125,8 +143,29 @@ class VerseOfTheDayEndpoint(Resource):
     @api.marshal_with(PassageResponseModel)
     def get(self):
         """Get a verse of the day, querying LLM based on current date and holidays."""
+        today = datetime.date.today()
+        today_doc_id = today.strftime("%Y-%m-%d")
+        collection_name = "verse_of_the_day"
+
+        # Attempt to fetch from Firestore cache
+        if db: # Check if Firestore client is available
+            try:
+                doc_ref = db.collection(collection_name).document(today_doc_id)
+                doc = doc_ref.get()
+                if doc.exists:
+                    cached_data = doc.to_dict()
+                    app.logger.info(f"Cache hit for Verse of the Day: {today_doc_id}. Data: {cached_data.get('response')[:50]}...")
+                    # Ensure response format matches PassageResponseModel
+                    return {"response": cached_data.get("response"), "score": cached_data.get("score")}, 200
+                else:
+                    app.logger.info(f"Cache miss for Verse of the Day: {today_doc_id}")
+            except Exception as e:
+                app.logger.error(f"Error accessing Firestore cache for {today_doc_id}: {e}", exc_info=True)
+        else:
+            app.logger.warn("Firestore client (db) not available, skipping cache check for Verse of the Day.")
+
+        # Cache miss or Firestore unavailable, proceed to generate verse
         try:
-            today = datetime.date.today()
             # For simplicity, using US holidays. This could be made configurable.
             # Also, note that most Christian holidays recognized by the 'holidays' library
             # are based on Western Christian traditions by default.
@@ -162,13 +201,32 @@ class VerseOfTheDayEndpoint(Resource):
             result, status_code = llm_handler.get_llm_bible_reference(session, query)
 
             if status_code == 200 and result.get('response'):
-                app.logger.info(f"Successfully fetched verse of the day from LLM: {result.get('response')[:100]}...")
                 verse_to_tweet = result.get('response')
+                score = result.get('score')
+                app.logger.info(f"Successfully fetched verse of the day from LLM: {verse_to_tweet[:100]}...")
+
                 # Attempt to post to X
                 if x_poster.post_tweet(verse_to_tweet):
                     app.logger.info("Verse of the day posted to X successfully.")
                 else:
                     app.logger.error("Failed to post verse of the day to X.")
+
+                # Store in Firestore cache
+                if db:
+                    try:
+                        doc_ref = db.collection(collection_name).document(today_doc_id)
+                        data_to_store = {
+                            'response': verse_to_tweet,
+                            'score': score,
+                            'timestamp': firestore.SERVER_TIMESTAMP
+                        }
+                        doc_ref.set(data_to_store)
+                        app.logger.info(f"Verse of the Day {today_doc_id} cached successfully in Firestore. Data: {verse_to_tweet[:50]}...")
+                    except Exception as e:
+                        app.logger.error(f"Error caching Verse of the Day {today_doc_id} to Firestore: {e}", exc_info=True)
+                else:
+                    app.logger.warn(f"Firestore client (db) not available, skipping cache write for Verse of the Day {today_doc_id}.")
+
                 return result, 200
             else:
                 error_msg = result.get('error', 'Unknown error from LLM')

@@ -9,6 +9,8 @@ from openai import (
     RateLimitError,
     APITimeoutError,
 )
+from google.cloud import firestore # For SERVER_TIMESTAMP
+from google.cloud.firestore_v1.base_vector_query import Vector, DistanceMeasure # For Vector Search
 
 
 class LLMHandler:
@@ -77,11 +79,13 @@ class LLMHandler:
     MAX_HISTORY_PAIRS = 5  # Number of user/assistant message pairs
     MAX_RETRIES = 3
 
-    def __init__(self, client, logger, bible_parser, model_name):
+    def __init__(self, client, logger, bible_parser, model_name, db, embedding_model): # Add embedding_model
         self.client = client
         self.logger = logger
         self.bible_parser = bible_parser
         self.model_name = model_name
+        self.db = db # Store db instance
+        self.embedding_model = embedding_model # Store embedding_model instance
 
     def _get_conversation_history(self, session):
         if "conversation_history" not in session:
@@ -205,6 +209,54 @@ class LLMHandler:
                 "OpenAI client not initialized. LLM functionality disabled."
             )
             return {"error": "LLM service is not configured on the server."}, 500
+
+        # Semantic Cache Check
+        llm_semantic_cache_collection_name = "llm_semantic_cache"
+        SIMILARITY_THRESHOLD = 0.1 # For COSINE distance, lower is better (more similar)
+
+        if self.db and self.embedding_model:
+            try:
+                self.logger.info(f"Attempting semantic cache lookup for query: '{user_query[:50]}...'")
+                query_embedding_array = self.embedding_model.encode(user_query)
+                query_embedding_list = query_embedding_array.tolist()
+                query_vector_for_firestore = Vector(query_embedding_list)
+
+                cache_ref = self.db.collection(llm_semantic_cache_collection_name)
+                vector_query = cache_ref.find_nearest(
+                    vector_field="query_embedding",
+                    query_vector=query_vector_for_firestore,
+                    distance_measure=DistanceMeasure.COSINE,
+                    limit=1,
+                    distance_result_field='distance' # To retrieve the distance
+                )
+                nearest_docs = list(vector_query.stream())
+
+                if nearest_docs:
+                    cached_doc_snapshot = nearest_docs[0]
+                    distance = cached_doc_snapshot.get("distance")
+                    self.logger.info(f"Semantic cache: nearest doc found with distance: {distance}")
+
+                    if distance is not None and distance < SIMILARITY_THRESHOLD:
+                        cached_data = cached_doc_snapshot.to_dict()
+                        response = cached_data.get("response")
+                        score = cached_data.get("score")
+                        if response: # Ensure essential data is present
+                            self.logger.info(f"Semantic cache hit for query: '{user_query[:50]}...'. Distance: {distance}. Cached response: {response[:50]}...")
+                            # Update conversation history minimally for cache hit
+                            # Potentially add a system message indicating cache usage, or just the response
+                            # For now, let's not alter history drastically for a cache hit to keep it simple
+                            # self._update_conversation_history(session, current_history, user_query, assistant_response=response, printed_passage=response) # This might be too much
+                            return {"response": response, "score": score}, 200
+                        else:
+                            self.logger.warn("Semantic cache: hit but cached data missing 'response'.")
+                    else:
+                        self.logger.info(f"Semantic cache: miss (distance {distance} >= threshold {SIMILARITY_THRESHOLD}).")
+                else:
+                    self.logger.info("Semantic cache: no similar documents found.")
+            except Exception as e:
+                self.logger.error(f"Error during semantic cache lookup: {e}", exc_info=True)
+        else:
+            self.logger.warn("Semantic cache skipped: Firestore (db) or embedding_model not available.")
 
         # Initialize our list of already‐printed passages
         if "printed_passages" not in session:
@@ -352,6 +404,32 @@ class LLMHandler:
                         "error": f"Bible lookup failed for reference '{passage_reference}'."
                     }, 500
 
+                # Successful LLM response, attempt to cache it
+                if self.db and self.embedding_model and 'query_embedding_list' in locals(): # Ensure embedding was generated
+                    try:
+                        doc_data_to_cache = {
+                            "user_query": user_query,
+                            "query_embedding": query_embedding_list, # Storing the list directly
+                            "response": passage_text,
+                            "score": selected_weight, # This is the combined score
+                            "llm_model_name": self.model_name,
+                            "raw_llm_output": raw_llm_output, # Storing the raw output for audit/analysis
+                            "created_timestamp": firestore.SERVER_TIMESTAMP
+                        }
+                        # Add other potentially useful fields from the LLM response if needed
+                        # e.g., latency_ms, prompt_tokens, completion_tokens
+                        # doc_data_to_cache["latency_ms"] = latency_ms
+                        # doc_data_to_cache["prompt_tokens"] = prompt_tokens
+                        # doc_data_to_cache["completion_tokens"] = completion_tokens
+
+                        self.db.collection(llm_semantic_cache_collection_name).add(doc_data_to_cache)
+                        self.logger.info(f"Successfully wrote to semantic cache for query: '{user_query[:50]}...'. Response: {passage_text[:50]}...")
+                    except Exception as e:
+                        self.logger.error(f"Error writing to semantic cache: {e}", exc_info=True)
+                else:
+                    self.logger.warn("Semantic cache write skipped: Firestore, embedding model, or query_embedding_list not available.")
+
+
                 self._update_conversation_history(
                     session,
                     current_history,
@@ -359,13 +437,15 @@ class LLMHandler:
                     raw_llm_output,
                     printed_passage=passage_reference,
                 )
-                return {
+                # This is the original result structure, ensure it's maintained
+                llm_result_payload = {
                     "response": passage_text,
                     "score": selected_weight,
                     "latency_ms": latency_ms,
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
-                }, 200
+                }
+                return llm_result_payload, 200
 
             except json.JSONDecodeError as e:
                 self.logger.warn(
