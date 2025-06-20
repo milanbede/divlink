@@ -1,11 +1,15 @@
 import os  # Still needed for FLASK_SECRET_KEY and os.urandom
-from flask import Flask, render_template, session
+import asyncio
+from flask import Flask, render_template, session, request, jsonify
 from flask_restx import Api, Resource, fields
 from dotenv import load_dotenv
 from openai import OpenAI
+from telegram import Bot, Update
 from random_seeder import RandomSeeder
 from bible_parser import BibleParser
 from llm_handler import LLMHandler  # Import the new LLMHandler class
+from telegram_handler import TelegramHandler
+from telegram_session import TelegramSessionManager
 
 load_dotenv()  # Load variables from .env file
 
@@ -43,6 +47,7 @@ PassageResponseModel = api.model(
 )
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 # Initialize OpenAI client for OpenRouter
 if OPENROUTER_API_KEY:
@@ -52,6 +57,24 @@ else:
         "OPENROUTER_API_KEY not found in .env file. LLM functionality will be disabled."
     )
     client = None  # Explicitly set client to None if key is missing
+
+# Initialize Telegram bot
+telegram_bot = None
+telegram_handler = None
+telegram_session_manager = None
+
+if TELEGRAM_BOT_TOKEN:
+    try:
+        telegram_bot = Bot(token=TELEGRAM_BOT_TOKEN)
+        telegram_session_manager = TelegramSessionManager(app.logger)
+        app.logger.info("Telegram bot initialized successfully")
+    except Exception as e:
+        app.logger.error(f"Failed to initialize Telegram bot: {e}")
+        telegram_bot = None
+else:
+    app.logger.warning(
+        "TELEGRAM_BOT_TOKEN not found in .env file. Telegram bot functionality will be disabled."
+    )
 
 # Initialize the random number generator at application startup
 seeder = RandomSeeder(app.logger)
@@ -64,6 +87,12 @@ bible_parser = BibleParser(app.logger)
 llm_handler = LLMHandler(
     client, app.logger, bible_parser, "deepseek/deepseek-chat-v3-0324:free"
 )
+
+# Initialize Telegram handler after all components are ready
+if telegram_bot and telegram_session_manager:
+    telegram_handler = TelegramHandler(
+        telegram_bot, app.logger, llm_handler, bible_parser, telegram_session_manager
+    )
 
 
 @app.route("/")
@@ -112,6 +141,96 @@ class RandomPsalmEndpoint(Resource):
             )
             return {"response": fallback_verse, "score": None}, 200
         return {"response": passage_text, "score": None}, 200
+
+
+# Telegram webhook endpoints
+@app.route("/telegram/webhook", methods=["POST"])
+def telegram_webhook():
+    """Handle incoming Telegram webhook updates"""
+    if not telegram_handler:
+        app.logger.error("Telegram handler not initialized")
+        return "Telegram bot not configured", 503
+
+    try:
+        # Get the update from Telegram
+        update_data = request.get_json()
+        if not update_data:
+            return "No data received", 400
+
+        # Create Update object
+        update = Update.de_json(update_data, telegram_bot)
+        if not update:
+            return "Invalid update format", 400
+
+        # Process the update asynchronously
+        asyncio.create_task(telegram_handler.process_message(update))
+
+        return "OK", 200
+
+    except Exception as e:
+        app.logger.error(f"Error processing Telegram webhook: {e}")
+        return "Error processing update", 500
+
+
+@app.route("/telegram/set-webhook", methods=["POST"])
+def set_telegram_webhook():
+    """Set webhook URL for Telegram bot (for development/deployment)"""
+    if not telegram_bot:
+        return jsonify({"error": "Telegram bot not configured"}), 503
+
+    try:
+        webhook_url = request.json.get("webhook_url")
+        if not webhook_url:
+            return jsonify({"error": "webhook_url required"}), 400
+
+        # Set the webhook
+        asyncio.create_task(telegram_bot.set_webhook(url=webhook_url))
+
+        return (
+            jsonify({"success": True, "message": f"Webhook set to {webhook_url}"}),
+            200,
+        )
+
+    except Exception as e:
+        app.logger.error(f"Error setting webhook: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/telegram/webhook-info", methods=["GET"])
+def get_webhook_info():
+    """Get current webhook information"""
+    if not telegram_bot:
+        return jsonify({"error": "Telegram bot not configured"}), 503
+
+    try:
+
+        async def get_info():
+            return await telegram_bot.get_webhook_info()
+
+        webhook_info = asyncio.run(get_info())
+
+        return (
+            jsonify(
+                {
+                    "url": webhook_info.url,
+                    "has_custom_certificate": webhook_info.has_custom_certificate,
+                    "pending_update_count": webhook_info.pending_update_count,
+                    "last_error_date": (
+                        webhook_info.last_error_date.isoformat()
+                        if webhook_info.last_error_date
+                        else None
+                    ),
+                    "last_error_message": webhook_info.last_error_message,
+                    "max_connections": webhook_info.max_connections,
+                    "allowed_updates": webhook_info.allowed_updates,
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        app.logger.error(f"Error getting webhook info: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
