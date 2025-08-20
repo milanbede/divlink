@@ -27,7 +27,7 @@
 </head>
 <body>
     <div id="terminal">
-        <div id="languageFlag" title="Switch Bible version">🇺🇸</div>
+        <div id="languageFlag" title="Switch Bible version"></div>
         <div id="output">
         </div>
         <div class="prompt-line">
@@ -46,23 +46,67 @@
             const promptLine = commandInput.parentElement;
             const languageFlag = document.getElementById('languageFlag');
 
+            // i18n translations
+            const translations = {
+                kjv: {
+                    flagIcon: 'HU',
+                    flagTitle: 'Váltás magyarra',
+                    statusBar: 'This site uses session cookies.',
+                    errorPrefix: 'Error:',
+                    noResponseText: 'Received no specific response.',
+                    noPsalmText: 'Could not retrieve a Psalm at this moment.',
+                    serverErrorText: 'Server error:',
+                    fetchErrorText: 'Error:',
+                    promptUsername: 'seeker'
+                },
+                szit: {
+                    flagIcon: 'EN',
+                    flagTitle: 'Switch to English',
+                    statusBar: 'Ez az oldal munkamenet sütiket használ.',
+                    errorPrefix: 'Hiba:',
+                    noResponseText: 'Nem érkezett konkrét válasz.',
+                    noPsalmText: 'Jelenleg nem sikerült zsoltárt betölteni.',
+                    serverErrorText: 'Szerver hiba:',
+                    fetchErrorText: 'Hiba:',
+                    promptUsername: 'útkereső'
+                }
+            };
+
+            function t(key) {
+                return translations[currentBibleVersion][key] || translations.kjv[key] || key;
+            }
+
             // Language management
             let currentBibleVersion = localStorage.getItem('bibleVersion') ||
                                        (navigator.language.toLowerCase().includes('hu') ? 'szit' : 'kjv');
 
             function updateFlag() {
-                languageFlag.textContent = currentBibleVersion === 'szit' ? '🇭🇺' : '🇺🇸';
-                languageFlag.title = `Switch to ${currentBibleVersion === 'szit' ? 'English (KJV)' : 'Hungarian (SZIT)'} Bible`;
+                languageFlag.textContent = t('flagIcon');
+                languageFlag.title = t('flagTitle');
+            }
+
+            function updateUI() {
+                // Update status bar
+                const statusBar = document.getElementById('statusBar');
+                statusBar.textContent = t('statusBar');
+
+                // Update username in prompt
+                const username = document.querySelector('.username');
+                if (username) {
+                    username.textContent = t('promptUsername');
+                }
+
+                updateFlag();
             }
 
             function toggleLanguage() {
                 currentBibleVersion = currentBibleVersion === 'szit' ? 'kjv' : 'szit';
                 localStorage.setItem('bibleVersion', currentBibleVersion);
-                updateFlag();
+                updateUI();
             }
 
             languageFlag.addEventListener('click', toggleLanguage);
-            updateFlag(); // Set initial flag state
+            updateUI(); // Set initial UI state
 
             // Wrap references like "Sirach 1:2-7" in a BibleGateway link
             function linkifyVerses(text) {
@@ -172,13 +216,13 @@
                 fetch(`/api/random_psalm?version=${currentBibleVersion}`)
                     .then(r => {
                         if (!r.ok) {
-                            return r.json().then(errData => { throw new Error(errData.error || `Server error: ${r.status}`); })
-                                       .catch(() => { throw new Error(`Server error: ${r.status}`); });
+                            return r.json().then(errData => { throw new Error(errData.error || `${t('serverErrorText')} ${r.status}`); })
+                                       .catch(() => { throw new Error(`${t('serverErrorText')} ${r.status}`); });
                         }
                         return r.json();
                     })
                     .then(data => {
-                        const psalmText = data.response || "Could not retrieve a Psalm at this moment.";
+                        const psalmText = data.response || t('noPsalmText');
                         typeResponse(linkifyVerses(psalmText), outputDiv, data.score, () => {
                             outputDiv.appendChild(document.createElement('br'));
                             promptLine.style.visibility = 'visible';
@@ -190,7 +234,7 @@
                     .catch(error => {
                         console.error('Error fetching random Psalm:', error);
                         const errorElement = document.createElement('div');
-                        errorElement.textContent = `Error: Could not load a Psalm. ${error.message}`;
+                        errorElement.textContent = `${t('errorPrefix')} ${t('noPsalmText')} ${error.message}`;
                         errorElement.style.color = 'red';
                         outputDiv.appendChild(errorElement);
                         outputDiv.appendChild(document.createElement('br'));
@@ -222,7 +266,7 @@
                     if (command) {
                         const commandElement = document.createElement('div');
                         commandElement.className = 'echoed-command-line';
-                        commandElement.innerHTML = `<span class="username-echo">seeker</span><span class="prompt-echo">&gt;</span><span class="echoed-command-text">${escapeHtml(command)}</span>`;
+                        commandElement.innerHTML = `<span class="username-echo">${t('promptUsername')}</span><span class="prompt-echo">&gt;</span><span class="echoed-command-text">${escapeHtml(command)}</span>`;
                         outputDiv.appendChild(commandElement);
                         ensureScrolling();
                         promptLine.style.visibility = 'hidden';
@@ -234,13 +278,13 @@
                         })
                         .then(r => {
                             if (!r.ok) {
-                                return r.json().then(errData => { throw new Error(errData.error || `Server error: ${r.status}`); })
-                                           .catch(() => { throw new Error(`Server error: ${r.status}`); });
+                                return r.json().then(errData => { throw new Error(errData.error || `${t('serverErrorText')} ${r.status}`); })
+                                           .catch(() => { throw new Error(`${t('serverErrorText')} ${r.status}`); });
                             }
                             return r.json();
                         })
                         .then(data => {
-                            const responseText = data.response || "Received no specific response.";
+                            const responseText = data.response || t('noResponseText');
                             const score = data.score;
                             typeResponse(linkifyVerses(responseText), outputDiv, score, () => {
                                 outputDiv.appendChild(document.createElement('br'));
@@ -253,7 +297,7 @@
                         })
                         .catch(error => {
                             console.error('Fetch Error:', error);
-                            const errorText = `Error: ${escapeHtml(error.message)}`;
+                            const errorText = `${t('fetchErrorText')} ${escapeHtml(error.message)}`;
                             typeResponse(errorText, outputDiv, null, () => {
                                 outputDiv.appendChild(document.createElement('br'));
                                 commandInput.value = '';
@@ -266,7 +310,7 @@
                     } else {
                         const commandElement = document.createElement('div');
                         commandElement.className = 'echoed-command-line';
-                        commandElement.innerHTML = `<span class="username-echo">seeker</span><span class="prompt-echo">&gt;</span>&nbsp;`;
+                        commandElement.innerHTML = `<span class="username-echo">${t('promptUsername')}</span><span class="prompt-echo">&gt;</span>&nbsp;`;
                         outputDiv.appendChild(commandElement);
                         outputDiv.appendChild(document.createElement('br'));
                         ensureScrolling();

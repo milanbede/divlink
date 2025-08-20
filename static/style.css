@@ -103,21 +103,28 @@ body {
 
 #languageFlag {
     position: absolute;
-    top: 8px;
-    right: 8px;
-    font-size: 1.2em;
+    bottom: 0;
+    left: 8px;
+    font-size: 0.8em;
     cursor: pointer;
     user-select: none;
     z-index: 3;
     opacity: 0.7;
-    transition: opacity 0.2s ease, transform 0.1s ease;
-    padding: 4px;
+    transition: opacity 0.2s ease;
+    padding: 0 6px;
     border-radius: 2px;
+    height: var(--statusbar-height);
+    display: flex;
+    align-items: center;
+    background-color: transparent;
+    line-height: 1;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    color: var(--statusbar-text-color);
 }
 
 #languageFlag:hover {
     opacity: 1;
-    transform: scale(1.1);
     background-color: rgba(0, 255, 0, 0.1);
     text-shadow: 0 0 3px rgba(0, 255, 0, 0.5);
 }
@@ -141,8 +148,8 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 0.9em;
-    padding: 0 8px; /* Horizontal padding for text inside status bar */
-    z-index: 2; /* Above scanlines, same level as output/prompt */
+    padding: 0 8px 0 60px; /* Left padding to make room for flag */
+    z-index: 2; /* Above scanlines, below flag */
     user-select: none; /* Status bar text usually not selectable */
 }
 
