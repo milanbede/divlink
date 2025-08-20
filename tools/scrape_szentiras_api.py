@@ -2,6 +2,7 @@ import os
 import json
 import re
 import time
+import random
 import requests  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 
@@ -122,101 +123,123 @@ def get_existing_book_names(output_dir):
     return existing_books
 
 
-def fetch_book_from_api(book_abbrev):
+def fetch_book_from_api(book_abbrev, max_retries=5, base_delay=1.0):
     """
-    Fetches an entire book from the szentiras.eu API.
+    Fetches an entire book from the szentiras.eu API with exponential backoff retry.
     Returns chapters organized as a list of lists (chapters -> verses).
     """
     api_url = f"{API_BASE_URL}{book_abbrev}"
     print(f"Fetching {book_abbrev} from API: {api_url}")
 
-    try:
-        response = requests.get(api_url)
-        response.raise_for_status()
-        time.sleep(0.3)  # Be polite to the API
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(api_url)
 
-        data = response.json()
-
-        if "valasz" not in data or "versek" not in data["valasz"]:
-            print(f"Invalid API response structure for {book_abbrev}")
-            return None
-
-        verses_data = data["valasz"]["versek"]
-        if not verses_data:
-            print(f"No verses found in API response for {book_abbrev}")
-            return None
-
-        print(f"Received {len(verses_data)} verses from API")
-
-        # Organize verses by chapter
-        chapters = {}
-
-        for verse_data in verses_data:
-            # Extract verse text and clean HTML
-            verse_text = verse_data.get("szoveg", "").strip()
-            if not verse_text:
-                continue
-
-            # Remove HTML tags but preserve the structure for cleaning
-            soup = BeautifulSoup(verse_text, "html.parser")
-
-            # Remove title and header tags that contain book/section titles
-            for tag in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
-                tag.decompose()  # Completely remove these tags and their content
-
-            # Get clean text without HTML
-            verse_text = soup.get_text()
-            verse_text = re.sub(r"\s+", " ", verse_text).strip()
-
-            # Extract chapter and verse numbers from location
-            location = verse_data.get("hely", {})
-            machine_ref = location.get("gepi", "")  # e.g., "1CO_1_1"
-
-            if not machine_ref:
-                continue
-
-            # Parse chapter number from machine reference
-            # Format is typically: BOOK_CHAPTER_VERSE (e.g., "1CO_1_1")
-            parts = machine_ref.split("_")
-            if len(parts) >= 2:
-                try:
-                    chapter_num = int(parts[1])
-
-                    if chapter_num not in chapters:
-                        chapters[chapter_num] = []
-
-                    chapters[chapter_num].append(verse_text)
-
-                except ValueError:
-                    print(f"Could not parse chapter number from {machine_ref}")
+            if response.status_code == 429:  # Too Many Requests
+                if attempt < max_retries - 1:
+                    # Exponential backoff with jitter
+                    delay = base_delay * (2**attempt) + random.uniform(0, 1)
+                    print(
+                        f"Rate limited (429). Retrying in {delay:.1f}s (attempt {attempt + 1}/{max_retries})"
+                    )
+                    time.sleep(delay)
                     continue
+                else:
+                    print(f"Failed after {max_retries} attempts due to rate limiting")
+                    return None
 
-        # Convert to ordered list of chapters
-        if not chapters:
-            print(f"No chapters parsed for {book_abbrev}")
-            return None
+            response.raise_for_status()
 
-        max_chapter = max(chapters.keys())
-        ordered_chapters = []
+            # Add delay between successful requests
+            time.sleep(0.5 + random.uniform(0, 0.3))  # 0.5-0.8s delay with jitter
 
-        for chapter_num in range(1, max_chapter + 1):
-            if chapter_num in chapters:
-                ordered_chapters.append(chapters[chapter_num])
+            data = response.json()
+            break
+
+        except requests.RequestException as e:
+            if attempt < max_retries - 1:
+                delay = base_delay * (2**attempt) + random.uniform(0, 1)
+                print(
+                    f"Request failed: {e}. Retrying in {delay:.1f}s (attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(delay)
+                continue
             else:
-                print(f"Warning: Missing chapter {chapter_num} in {book_abbrev}")
+                print(
+                    f"Error fetching {book_abbrev} from API after {max_retries} attempts: {e}"
+                )
+                return None
 
-        print(f"Successfully parsed {len(ordered_chapters)} chapters for {book_abbrev}")
-        return ordered_chapters
+    if "valasz" not in data or "versek" not in data["valasz"]:
+        print(f"Invalid API response structure for {book_abbrev}")
+        return None
 
-    except requests.RequestException as e:
-        print(f"Error fetching {book_abbrev} from API: {e}")
+    verses_data = data["valasz"]["versek"]
+    if not verses_data:
+        print(f"No verses found in API response for {book_abbrev}")
         return None
-    except json.JSONDecodeError as e:
-        print(f"Error parsing JSON response for {book_abbrev}: {e}")
+
+    print(f"Received {len(verses_data)} verses from API")
+
+    # Organize verses by chapter
+    chapters = {}
+
+    for verse_data in verses_data:
+        # Extract verse text and clean HTML
+        verse_text = verse_data.get("szoveg", "").strip()
+        if not verse_text:
+            continue
+
+        # Remove HTML tags but preserve the structure for cleaning
+        soup = BeautifulSoup(verse_text, "html.parser")
+
+        # Remove title and header tags that contain book/section titles
+        for tag in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
+            tag.decompose()  # Completely remove these tags and their content
+
+        # Get clean text without HTML
+        verse_text = soup.get_text()
+        verse_text = re.sub(r"\s+", " ", verse_text).strip()
+
+        # Extract chapter and verse numbers from location
+        location = verse_data.get("hely", {})
+        machine_ref = location.get("gepi", "")  # e.g., "1CO_1_1"
+
+        if not machine_ref:
+            continue
+
+        # Parse chapter number from machine reference
+        # Format is typically: BOOK_CHAPTER_VERSE (e.g., "1CO_1_1")
+        parts = machine_ref.split("_")
+        if len(parts) >= 2:
+            try:
+                chapter_num = int(parts[1])
+
+                if chapter_num not in chapters:
+                    chapters[chapter_num] = []
+
+                chapters[chapter_num].append(verse_text)
+
+            except ValueError:
+                print(f"Could not parse chapter number from {machine_ref}")
+                continue
+
+    # Convert to ordered list of chapters
+    if not chapters:
+        print(f"No chapters parsed for {book_abbrev}")
         return None
-    except Exception as e:
-        print(f"Unexpected error processing {book_abbrev}: {e}")
-        return None
+
+    max_chapter = max(chapters.keys())
+    ordered_chapters = []
+
+    for chapter_num in range(1, max_chapter + 1):
+        if chapter_num in chapters:
+            ordered_chapters.append(chapters[chapter_num])
+        else:
+            print(f"Warning: Missing chapter {chapter_num} in {book_abbrev}")
+
+    print(f"Successfully parsed {len(ordered_chapters)} chapters for {book_abbrev}")
+    return ordered_chapters
 
 
 def main():
