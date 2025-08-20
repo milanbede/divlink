@@ -32,6 +32,22 @@ query_model = api.model(
     "Query",
     {
         "query": fields.String(required=True, description="Your spiritual question"),
+        "version": fields.String(
+            required=False,
+            description="Bible version: 'kjv' or 'szit'",
+            enum=["kjv", "szit"],
+        ),
+    },
+)
+
+version_model = api.model(
+    "Version",
+    {
+        "version": fields.String(
+            required=False,
+            description="Bible version: 'kjv' or 'szit'",
+            enum=["kjv", "szit"],
+        ),
     },
 )
 
@@ -95,6 +111,12 @@ if telegram_bot and telegram_session_manager:
     )
 
 
+def get_default_bible_version():
+    """Detect default Bible version from browser language preferences."""
+    accept_lang = request.headers.get("Accept-Language", "").lower()
+    return "szit" if "hu" in accept_lang else "kjv"
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -110,13 +132,25 @@ class QueryEndpoint(Resource):
         if not user_query:
             api.abort(400, "No query provided.")
 
-        result, status_code = llm_handler.get_llm_bible_reference(session, user_query)
+        # Get Bible version from payload or detect from browser
+        bible_version = api.payload.get("version", get_default_bible_version())
+
+        # Store version in session for consistency
+        session["bible_version"] = bible_version
+
+        result, status_code = llm_handler.get_llm_bible_reference(
+            session, user_query, bible_version
+        )
 
         if status_code != 200:
             app.logger.error(
                 f"LLM query failed (status {status_code}), falling back to random Psalm."
             )
-            passage_text = bible_parser.get_random_psalm_passage()
+            # Create version-specific parser for fallback
+            from bible_parser import BibleParser
+
+            fallback_parser = BibleParser(app.logger, bible_version=bible_version)
+            passage_text = fallback_parser.get_random_psalm_passage()
             if passage_text is None:
                 fallback_verse = (
                     "For God so loved the world, that he gave his only begotten Son, "
@@ -133,7 +167,44 @@ class RandomPsalmEndpoint(Resource):
     @api.marshal_with(PassageResponseModel)  # Uses the model for passage responses
     def get(self):
         """Get a random curated powerful Psalm"""
-        passage_text = bible_parser.get_random_psalm_passage()
+        # Get Bible version from query parameter or detect from browser
+        bible_version = request.args.get("version", get_default_bible_version())
+
+        # Store version in session for consistency
+        session["bible_version"] = bible_version
+
+        # Create version-specific parser
+        from bible_parser import BibleParser
+
+        version_parser = BibleParser(app.logger, bible_version=bible_version)
+        passage_text = version_parser.get_random_psalm_passage()
+        if passage_text is None:
+            fallback_verse = (
+                "For God so loved the world, that he gave his only begotten Son, "
+                "that whosoever believeth in him should not perish, but have everlasting life. – John 3:16"
+            )
+            return {"response": fallback_verse, "score": None}, 200
+        return {"response": passage_text, "score": None}, 200
+
+    @api.expect(version_model)
+    @api.marshal_with(PassageResponseModel)
+    def post(self):
+        """Get a random curated powerful Psalm (POST version for consistency)"""
+        # Get Bible version from payload or detect from browser
+        bible_version = (
+            api.payload.get("version", get_default_bible_version())
+            if api.payload
+            else get_default_bible_version()
+        )
+
+        # Store version in session for consistency
+        session["bible_version"] = bible_version
+
+        # Create version-specific parser
+        from bible_parser import BibleParser
+
+        version_parser = BibleParser(app.logger, bible_version=bible_version)
+        passage_text = version_parser.get_random_psalm_passage()
         if passage_text is None:
             fallback_verse = (
                 "For God so loved the world, that he gave his only begotten Son, "

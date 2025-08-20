@@ -27,6 +27,7 @@
 </head>
 <body>
     <div id="terminal">
+        <div id="languageFlag" title="Switch Bible version">🇺🇸</div>
         <div id="output">
         </div>
         <div class="prompt-line">
@@ -43,14 +44,37 @@
             const customCursor = document.getElementById('customCursor');
             const textMeasurer = document.getElementById('textMeasurer');
             const promptLine = commandInput.parentElement;
+            const languageFlag = document.getElementById('languageFlag');
+
+            // Language management
+            let currentBibleVersion = localStorage.getItem('bibleVersion') ||
+                                       (navigator.language.toLowerCase().includes('hu') ? 'szit' : 'kjv');
+
+            function updateFlag() {
+                languageFlag.textContent = currentBibleVersion === 'szit' ? '🇭🇺' : '🇺🇸';
+                languageFlag.title = `Switch to ${currentBibleVersion === 'szit' ? 'English (KJV)' : 'Hungarian (SZIT)'} Bible`;
+            }
+
+            function toggleLanguage() {
+                currentBibleVersion = currentBibleVersion === 'szit' ? 'kjv' : 'szit';
+                localStorage.setItem('bibleVersion', currentBibleVersion);
+                updateFlag();
+            }
+
+            languageFlag.addEventListener('click', toggleLanguage);
+            updateFlag(); // Set initial flag state
 
             // Wrap references like "Sirach 1:2-7" in a BibleGateway link
             function linkifyVerses(text) {
-                const version = 'NRSVCE';
-                return text.replace(/(\b(?:[1-3]\s)?[A-Za-z][\w\s']*?)\s(\d+:\d+(?:[-–]\d+)?)/g, (match, book, verses) => {
-                    const search = encodeURIComponent(`${book} ${verses}`);
-                    const url = `https://www.biblegateway.com/passage/?search=${search}&version=${version}`;
-                    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+                const version = currentBibleVersion === 'szit' ? 'HUN' : 'NRSVCE';
+                return text.replace(/(\b(?:[1-3]\s)?[A-Za-z\u00C0-\u017F][\w\s']*?)\s(\d+:\d+(?:[-–]\d+)?)/g, (match, book, verses) => {
+                    // Only linkify if it's English (KJV), as Hungarian BibleGateway might not have good support
+                    if (currentBibleVersion === 'kjv') {
+                        const search = encodeURIComponent(`${book} ${verses}`);
+                        const url = `https://www.biblegateway.com/passage/?search=${search}&version=${version}`;
+                        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+                    }
+                    return match; // Return unlinked for Hungarian
                 });
             }
 
@@ -145,7 +169,7 @@
                 clearTimeout(idleTimerId);
                 promptLine.style.visibility = 'hidden';
 
-                fetch('/api/random_psalm')
+                fetch(`/api/random_psalm?version=${currentBibleVersion}`)
                     .then(r => {
                         if (!r.ok) {
                             return r.json().then(errData => { throw new Error(errData.error || `Server error: ${r.status}`); })
@@ -206,7 +230,7 @@
                         fetch('/api/query', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ query: command }),
+                            body: JSON.stringify({ query: command, version: currentBibleVersion }),
                         })
                         .then(r => {
                             if (!r.ok) {

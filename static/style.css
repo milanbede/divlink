@@ -101,6 +101,34 @@ body {
     z-index: 1;
 }
 
+#languageFlag {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 1.2em;
+    cursor: pointer;
+    user-select: none;
+    z-index: 3;
+    opacity: 0.7;
+    transition: opacity 0.2s ease, transform 0.1s ease;
+    padding: 4px;
+    border-radius: 2px;
+}
+
+#languageFlag:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    background-color: rgba(0, 255, 0, 0.1);
+    text-shadow: 0 0 3px rgba(0, 255, 0, 0.5);
+}
+
+@media (prefers-color-scheme: light) {
+    #languageFlag:hover {
+        background-color: rgba(43, 43, 43, 0.1);
+        text-shadow: 0 0 3px rgba(43, 43, 43, 0.3);
+    }
+}
+
 #statusBar {
     position: absolute;
     bottom: 0;

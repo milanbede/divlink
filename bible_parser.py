@@ -5,8 +5,9 @@ import random  # For selecting a random Psalm chapter
 
 
 class BibleParser:
-    def __init__(self, logger, books_dir_override=None):
+    def __init__(self, logger, books_dir_override=None, bible_version="kjv"):
         self.logger = logger
+        self.bible_version = bible_version  # "kjv" or "szit"
         self.book_map = {}  # Maps book names/abbreviations to canonical book filenames (e.g., "Genesis")
         self.books_dir_path = None  # Path to the directory containing individual book JSON files (e.g., "data/books")
         self.divine_name_pattern = re.compile(r"\b(LORD|Lord)\b")
@@ -19,15 +20,17 @@ class BibleParser:
                 self.books_dir_path = books_dir_override
             else:
                 current_dir = os.path.dirname(__file__)
-                # Potential paths for 'data/books' directory
+                # Determine directory based on bible_version
+                books_subdir = "books" if self.bible_version == "kjv" else "books_szit"
+                # Potential paths for version-specific books directory
                 path_option1 = os.path.join(
-                    current_dir, "data", "books"
+                    current_dir, "data", books_subdir
                 )  # parser at project root
                 path_option2 = os.path.join(
-                    current_dir, "..", "data", "books"
+                    current_dir, "..", "data", books_subdir
                 )  # parser in subdir (e.g. app/)
                 path_option3 = os.path.join(
-                    os.getcwd(), "data", "books"
+                    os.getcwd(), "data", books_subdir
                 )  # running from project root
 
                 if os.path.isdir(path_option1):
@@ -86,14 +89,24 @@ class BibleParser:
                         self.book_map[book_name.lower()] = canonical_name_from_file
                         self.book_map[book_abbrev.lower()] = canonical_name_from_file
 
-                        if book_name.lower() == "psalms":
-                            self.book_map["psalm"] = (
-                                canonical_name_from_file  # Alias "psalm" for "Psalms"
-                            )
-
-                        # Add common aliases
-                        if book_name.lower() == "song of solomon":
-                            self.book_map["song of songs"] = canonical_name_from_file
+                        # Add version-specific aliases
+                        if self.bible_version == "kjv":
+                            if book_name.lower() == "psalms":
+                                self.book_map["psalm"] = canonical_name_from_file
+                            if book_name.lower() == "song of solomon":
+                                self.book_map["song of songs"] = (
+                                    canonical_name_from_file
+                                )
+                        elif self.bible_version == "szit":
+                            if book_name.lower() == "zsoltárok":
+                                self.book_map["zsoltár"] = canonical_name_from_file
+                                self.book_map["psalm"] = (
+                                    canonical_name_from_file  # English alias
+                                )
+                            if book_name.lower() == "énekek éneke":
+                                self.book_map["song of songs"] = (
+                                    canonical_name_from_file
+                                )
 
                         book_files_found += 1
                     except json.JSONDecodeError:
@@ -126,6 +139,40 @@ class BibleParser:
     def is_data_loaded(self):
         """Checks if the book index (book_map and books_dir_path) was successfully loaded."""
         return bool(self.book_map and self.books_dir_path)
+
+    def get_available_books(self):
+        """Returns a list of available book names for the current version."""
+        if not self.is_data_loaded():
+            self.logger.warning(
+                "Cannot get available books, Bible book index not loaded."
+            )
+            return []
+
+        book_names = []
+        if not os.path.isdir(self.books_dir_path):
+            return book_names
+
+        try:
+            for filename in sorted(os.listdir(self.books_dir_path)):
+                if filename.endswith(".json"):
+                    file_path = os.path.join(self.books_dir_path, filename)
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            book_metadata = json.load(f)
+                        book_name = book_metadata.get("name")
+                        if book_name:
+                            book_names.append(book_name)
+                    except (json.JSONDecodeError, Exception) as e:
+                        self.logger.warning(
+                            f"Could not read book name from {filename}: {e}"
+                        )
+                        continue
+        except Exception as e:
+            self.logger.error(
+                f"Error reading books directory {self.books_dir_path}: {e}"
+            )
+
+        return book_names
 
     def parse_reference(self, reference_str):
         """
