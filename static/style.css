@@ -101,11 +101,46 @@ body {
     z-index: 1;
 }
 
+#languageFlag {
+    position: fixed;
+    bottom: 20px;
+    left: 28px;
+    font-size: 0.8em;
+    cursor: pointer;
+    user-select: none;
+    z-index: 3;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+    padding: 0 6px;
+    border-radius: 2px;
+    height: var(--statusbar-height);
+    display: flex;
+    align-items: center;
+    background-color: transparent;
+    line-height: 1;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    color: var(--statusbar-text-color);
+}
+
+#languageFlag:hover {
+    opacity: 1;
+    background-color: rgba(0, 255, 0, 0.1);
+    text-shadow: 0 0 3px rgba(0, 255, 0, 0.5);
+}
+
+@media (prefers-color-scheme: light) {
+    #languageFlag:hover {
+        background-color: rgba(43, 43, 43, 0.1);
+        text-shadow: 0 0 3px rgba(43, 43, 43, 0.3);
+    }
+}
+
 #statusBar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
     height: var(--statusbar-height);
     background-color: var(--statusbar-bg-color);
     color: var(--statusbar-text-color);
@@ -113,8 +148,8 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 0.9em;
-    padding: 0 8px; /* Horizontal padding for text inside status bar */
-    z-index: 2; /* Above scanlines, same level as output/prompt */
+    padding: 0 8px 0 60px; /* Left padding to make room for flag */
+    z-index: 2; /* Above scanlines, below flag */
     user-select: none; /* Status bar text usually not selectable */
 }
 

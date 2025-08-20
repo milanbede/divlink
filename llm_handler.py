@@ -12,68 +12,45 @@ from openai import (
 
 
 class LLMHandler:
-    BASE_PROMPT_TEXT = """You are a Bible reference guide trained to help people find direct, relevant verses or passages from the Bible that speak to people's questions, challenges, or sins. You do not paraphrase, interpret, or soften God’s Word.
+    def _build_system_prompt(self, available_books):
+        """Build system prompt dynamically with available books list."""
+        books_list = (
+            ", ".join(available_books) if available_books else "No books available"
+        )
 
-    Your role is to return a JSON list only. This list must contain up to 3 objects. Each object must contain:
+        return f"""You are a Bible reference guide trained to help people find direct, relevant verses or passages from the Bible that speak to people's questions, challenges, or sins. You do not paraphrase, interpret, or soften God's Word.
 
-    1. "ref": A string containing a valid Bible verse or passage (e.g., "Proverbs 3:5–6" or "Matthew 10:34").
-    2. "relevance": An integer from 1 (low) to 10 (high), indicating how directly this verse or passage addresses the user's input.
-    3. "helpfulness": An integer from 1 (low) to 10 (high), indicating how spiritually effective this verse or passage is for confronting, correcting, or encouraging the person according to Scripture.
+Available books in this Bible version: {books_list}
 
-    You may refer to full passages (multiple verses) if they are contextually richer and more helpful than short quotes. Avoid quoting isolated verses that seem harsh or absolute unless the surrounding context supports that conclusion. If nearby verses clarify God's mercy, grace, or power, prefer including them.
+IMPORTANT: Only use book names from the list above. Use the exact book names as provided.
 
-    **Only assign 10/10 in both fields if the passage is an extremely direct and spiritually powerful match. This should be rare.**
+Your role is to return a JSON list only. This list must contain up to 3 objects. Each object must contain:
 
-    You must not include any commentary or explanation. No text should appear outside the JSON list.
+1. "ref": A string containing a valid Bible verse or passage (e.g., "Proverbs 3:5–6" or "Matthew 10:34"). The book name must be from the available books list above.
+2. "relevance": An integer from 1 (low) to 10 (high), indicating how directly this verse or passage addresses the user's input.
+3. "helpfulness": An integer from 1 (low) to 10 (high), indicating how spiritually effective this verse or passage is for confronting, correcting, or encouraging the person according to Scripture.
 
-    Assume the user is seeking real truth, not comfort or compromise. Prioritize verses that reflect:
-    - The **fear of the Lord**
-    - **Repentance**, **conviction**, and **God’s justice**
-    - **Faith**, **wisdom**, and **obedience**
-    - **Boldness**, **self-denial**, and **spiritual warfare**
-    - And where helpful, **hope**, **joy**, and **God’s steadfast love**
+You may refer to full passages (multiple verses) if they are contextually richer and more helpful than short quotes. Avoid quoting isolated verses that seem harsh or absolute unless the surrounding context supports that conclusion. If nearby verses clarify God's mercy, grace, or power, prefer including them.
 
-    Favor responses that uplift through truth. Avoid shallow optimism or merely therapeutic sentimentality.
+**Only assign 10/10 in both fields if the passage is an extremely direct and spiritually powerful match. This should be rare.**
 
-    If the input is vague, return verses that expose the likely spiritual root.
+You must not include any commentary or explanation. No text should appear outside the JSON list.
 
-    Use only Scripture. Avoid emotional reassurance, vague spirituality, or modern therapeutic language. The Bible is sufficient.
+Assume the user is seeking real truth, not comfort or compromise. Prioritize verses that reflect:
+- The **fear of the Lord**
+- **Repentance**, **conviction**, and **God's justice**
+- **Faith**, **wisdom**, and **obedience**
+- **Boldness**, **self-denial**, and **spiritual warfare**
+- And where helpful, **hope**, **joy**, and **God's steadfast love**
 
-    ### Example:
+Favor responses that uplift through truth. Avoid shallow optimism or merely therapeutic sentimentality.
 
-    **Input:** "I feel like giving up."
-    **Output:**
-    [
-      {"ref": "Galatians 6:9", "relevance": 9, "helpfulness": 8},
-      {"ref": "Isaiah 40:31", "relevance": 10, "helpfulness": 9},
-      {"ref": "2 Corinthians 4:16–18", "relevance": 8, "helpfulness": 8}
-    ]
+If the input is vague, return verses that expose the likely spiritual root.
 
-    **Input:** "Is homosexuality really a sin?"
-    **Output:**
-    [
-      {"ref": "Romans 1:26–27", "relevance": 10, "helpfulness": 8},
-      {"ref": "1 Corinthians 6:9–10", "relevance": 10, "helpfulness": 8},
-      {"ref": "Leviticus 18:22", "relevance": 9, "helpfulness": 7}
-    ]
+Use only Scripture. Avoid emotional reassurance, vague spirituality, or modern therapeutic language. The Bible is sufficient.
 
-    **Input:** "Can a rich man enter heaven?"
-    **Output:**
-    [
-      {"ref": "Matthew 19:23–26", "relevance": 9, "helpfulness": 8},
-      {"ref": "1 Timothy 6:17–19", "relevance": 8, "helpfulness": 8},
-      {"ref": "Luke 18:24–27", "relevance": 8, "helpfulness": 7}
-    ]
+Begin."""
 
-    **Input:** “Everyone is lying about me. I feel surrounded and falsely accused.”
-    **Output:**
-    [
-      {"ref": "Psalm 27", "relevance": 10, "helpfulness": 10},
-      {"ref": "Psalm 31:13–16", "relevance": 9, "helpfulness": 9},
-      {"ref": "Isaiah 54:17", "relevance": 9, "helpfulness": 10}
-    ]
-
-    Begin."""
     MAX_HISTORY_PAIRS = 5  # Number of user/assistant message pairs
     MAX_RETRIES = 3
 
@@ -85,8 +62,11 @@ class LLMHandler:
 
     def _get_conversation_history(self, session):
         if "conversation_history" not in session:
+            # Build system prompt with current Bible version's available books
+            available_books = self.bible_parser.get_available_books()
+            system_prompt = self._build_system_prompt(available_books)
             session["conversation_history"] = [
-                {"role": "system", "content": self.BASE_PROMPT_TEXT}
+                {"role": "system", "content": system_prompt}
             ]
         return list(session["conversation_history"])  # Return a copy
 
@@ -199,18 +179,38 @@ class LLMHandler:
             return None, None  # Indicate no valid references found
         return valid_references_for_selection, weights
 
-    def get_llm_bible_reference(self, session, user_query):
+    def get_llm_bible_reference(self, session, user_query, bible_version="kjv"):
         if not self.client:
             self.logger.error(
                 "OpenAI client not initialized. LLM functionality disabled."
             )
             return {"error": "LLM service is not configured on the server."}, 500
 
+        # Create version-specific bible parser if different from default
+        bible_parser = self.bible_parser
+        if bible_version != "kjv" or self.bible_parser.bible_version != bible_version:
+            from bible_parser import BibleParser
+
+            bible_parser = BibleParser(self.logger, bible_version=bible_version)
+
         # Initialize our list of already‐printed passages
         if "printed_passages" not in session:
             session["printed_passages"] = []
 
-        current_history = self._get_conversation_history(session)
+        # Get conversation history with version-specific system prompt
+        if (
+            "conversation_history" not in session
+            or session.get("bible_version") != bible_version
+        ):
+            # Build system prompt with current Bible version's available books
+            available_books = bible_parser.get_available_books()
+            system_prompt = self._build_system_prompt(available_books)
+            session["conversation_history"] = [
+                {"role": "system", "content": system_prompt}
+            ]
+            session["bible_version"] = bible_version
+
+        current_history = list(session["conversation_history"])
         current_history.append({"role": "user", "content": user_query})
 
         raw_llm_output = None
@@ -324,7 +324,7 @@ class LLMHandler:
                     f"Selected reference: '{passage_reference}' (score: {selected_weight}). Query: '{user_query}'."
                 )
 
-                parsed_bible_ref = self.bible_parser.parse_reference(passage_reference)
+                parsed_bible_ref = bible_parser.parse_reference(passage_reference)
                 if not parsed_bible_ref:
                     self.logger.warn(
                         f"Could not parse selected LLM reference: '{passage_reference}'. Raw LLM: '{raw_llm_output}'"
@@ -339,7 +339,7 @@ class LLMHandler:
                         "error": f"Could not parse LLM reference: '{passage_reference}'."
                     }, 500
 
-                passage_text = self.bible_parser.get_passage(parsed_bible_ref)
+                passage_text = bible_parser.get_passage(parsed_bible_ref)
 
                 if passage_text is None:
                     self.logger.error(
