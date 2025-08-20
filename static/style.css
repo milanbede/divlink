@@ -102,9 +102,9 @@ body {
 }
 
 #languageFlag {
-    position: absolute;
-    bottom: 0;
-    left: 8px;
+    position: fixed;
+    bottom: 20px;
+    left: 28px;
     font-size: 0.8em;
     cursor: pointer;
     user-select: none;
@@ -137,10 +137,10 @@ body {
 }
 
 #statusBar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
     height: var(--statusbar-height);
     background-color: var(--statusbar-bg-color);
     color: var(--statusbar-text-color);
