@@ -11,7 +11,89 @@ class BibleParser:
         self.book_map = {}  # Maps book names/abbreviations to canonical book filenames (e.g., "Genesis")
         self.books_dir_path = None  # Path to the directory containing individual book JSON files (e.g., "data/books")
         self.divine_name_pattern = re.compile(r"\b(LORD|Lord)\b")
+        self.cross_lang_book_mapping = self._get_cross_language_book_mapping()
         self._load_book_index(books_dir_override)
+
+    def _get_cross_language_book_mapping(self):
+        """Returns a mapping between English and Hungarian book names."""
+        return {
+            # New Testament
+            "matthew": "máté",
+            "mark": "márk",
+            "luke": "lukács",
+            "john": "jános",
+            "acts": "apostolok cselekedetei",
+            "romans": "rómaiak",
+            "1 corinthians": "1 korintusi",
+            "2 corinthians": "2 korintusi",
+            "galatians": "galatáknak",
+            "ephesians": "efezusiaknak",
+            "philippians": "filippieknek",
+            "colossians": "kolosszeieknek",
+            "1 thessalonians": "1 tesszaloniki",
+            "2 thessalonians": "2 tesszaloniki",
+            "1 timothy": "1 timóteus",
+            "2 timothy": "2 timóteus",
+            "titus": "titusznak",
+            "philemon": "filemonnak",
+            "hebrews": "zsidóknak",
+            "james": "jakab",
+            "1 peter": "1 péter",
+            "2 peter": "2 péter",
+            "1 john": "1 jános",
+            "2 john": "2 jános",
+            "3 john": "3 jános",
+            "jude": "júdás",
+            "revelation": "jelenések",
+            # Old Testament
+            "genesis": "teremtés",
+            "exodus": "kivonulás",
+            "leviticus": "leviták",
+            "numbers": "számok",
+            "deuteronomy": "második törvénykönyv",
+            "joshua": "józsué",
+            "judges": "bírák",
+            "ruth": "ruth",
+            "1 samuel": "1 sámuel",
+            "2 samuel": "2 sámuel",
+            "1 kings": "1 királyok",
+            "2 kings": "2 királyok",
+            "1 chronicles": "1 krónika",
+            "2 chronicles": "2 krónika",
+            "ezra": "ezdrás",
+            "nehemiah": "nehemiás",
+            "esther": "eszter",
+            "job": "jób",
+            "psalms": "zsoltárok",
+            "proverbs": "példabeszédek",
+            "ecclesiastes": "prédikátor",
+            "song of solomon": "énekek éneke",
+            "isaiah": "izajás",
+            "jeremiah": "jeremiás",
+            "lamentations": "jeremiás siralmai",
+            "ezekiel": "ezekiel",
+            "daniel": "dániel",
+            "hosea": "hóseás",
+            "joel": "jóel",
+            "amos": "ámós",
+            "obadiah": "abdiás",
+            "jonah": "jónás",
+            "micah": "mikeás",
+            "nahum": "náhum",
+            "habakkuk": "habakuk",
+            "zephaniah": "szofoniás",
+            "haggai": "aggeus",
+            "zechariah": "zakariás",
+            "malachi": "malakiás",
+            # Deuterocanonical books
+            "tobit": "tóbit",
+            "judith": "judit",
+            "wisdom of solomon": "bölcsesség könyve",
+            "sirach": "sirach",
+            "baruch": "báruk",
+            "1 maccabees": "1 makkabeusok",
+            "2 maccabees": "2 makkabeusok",
+        }
 
     def _load_book_index(self, books_dir_override=None):
         """Scans the books directory, gets metadata for each book, and populates book_map."""
@@ -236,9 +318,37 @@ class BibleParser:
                 if self.book_map.get(potential_plural_key) is not None:
                     canonical_book_name = self.book_map.get(potential_plural_key)
 
+            # Try cross-language mapping as fallback
+            if canonical_book_name is None:
+                # If we're in Hungarian mode, try English->Hungarian mapping
+                if self.bible_version == "szit":
+                    hungarian_name = self.cross_lang_book_mapping.get(book_name_key)
+                    if hungarian_name:
+                        canonical_book_name = self.book_map.get(hungarian_name.lower())
+                        if canonical_book_name:
+                            self.logger.info(
+                                f"Cross-language fallback: Found '{parsed_ref['book_name']}' -> '{hungarian_name}' -> '{canonical_book_name}'"
+                            )
+                # If we're in English mode, try Hungarian->English mapping (reverse lookup)
+                elif self.bible_version == "kjv":
+                    # Reverse lookup in cross_lang_book_mapping
+                    for (
+                        english_name,
+                        hungarian_name,
+                    ) in self.cross_lang_book_mapping.items():
+                        if hungarian_name.lower() == book_name_key:
+                            canonical_book_name = self.book_map.get(
+                                english_name.lower()
+                            )
+                            if canonical_book_name:
+                                self.logger.info(
+                                    f"Cross-language fallback: Found '{parsed_ref['book_name']}' -> '{english_name}' -> '{canonical_book_name}'"
+                                )
+                                break
+
             if canonical_book_name is None:
                 self.logger.warning(
-                    f"Book '{parsed_ref['book_name']}' (key: '{book_name_key}') not found in book_map."
+                    f"Book '{parsed_ref['book_name']}' (key: '{book_name_key}') not found in book_map or cross-language mapping."
                 )
                 return None
 
