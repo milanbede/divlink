@@ -54,17 +54,42 @@ Begin."""
     MAX_HISTORY_PAIRS = 5  # Number of user/assistant message pairs
     MAX_RETRIES = 3
 
-    def __init__(self, client, logger, bible_parser, model_name):
+    def __init__(
+        self, client, logger, bible_parser, model_name, fallback_model_name=None
+    ):
         self.client = client
         self.logger = logger
         self.bible_parser = bible_parser
         self.model_name = model_name
+        self.fallback_model_name = fallback_model_name
+        # Cache bible parsers by version to avoid recreating them
+        self._cached_parsers = {}
+        # Pre-populate with the provided parser
+        self._cached_parsers[bible_parser.bible_version] = bible_parser
+
+    def _get_cached_parser(self, bible_version):
+        """Get a cached BibleParser for the specified version, creating if needed."""
+        if bible_version not in self._cached_parsers:
+            from bible_parser import BibleParser
+
+            self._cached_parsers[bible_version] = BibleParser(
+                self.logger, bible_version=bible_version
+            )
+            self.logger.info(
+                f"Created new cached BibleParser for version: {bible_version}"
+            )
+        return self._cached_parsers[bible_version]
+
+    def _get_english_book_names(self):
+        """Always get English book names for LLM prompt, regardless of user's version."""
+        english_parser = self._get_cached_parser("kjv")
+        return english_parser.get_available_books()
 
     def _get_conversation_history(self, session):
         if "conversation_history" not in session:
-            # Build system prompt with current Bible version's available books
-            available_books = self.bible_parser.get_available_books()
-            system_prompt = self._build_system_prompt(available_books)
+            # Build system prompt with English book names for LLM consistency
+            english_books = self._get_english_book_names()
+            system_prompt = self._build_system_prompt(english_books)
             session["conversation_history"] = [
                 {"role": "system", "content": system_prompt}
             ]
@@ -179,41 +204,35 @@ Begin."""
             return None, None  # Indicate no valid references found
         return valid_references_for_selection, weights
 
-    def get_llm_bible_reference(self, session, user_query, bible_version="kjv"):
-        if not self.client:
-            self.logger.error(
-                "OpenAI client not initialized. LLM functionality disabled."
-            )
-            return {"error": "LLM service is not configured on the server."}, 500
+    def _call_llm_api(self, model_name, messages, user_query, attempt):
+        """Make a single API call to the LLM."""
+        self.logger.info(
+            f"LLM API Call Attempt {attempt + 1} for query: '{user_query}'. Model: '{model_name}'. Messages length: {len(messages)}"
+        )
+        start_time = time.monotonic()
+        completion = self.client.chat.completions.create(
+            model=model_name, messages=messages
+        )
+        end_time = time.monotonic()
+        latency_ms = (end_time - start_time) * 1000
 
-        # Create version-specific bible parser if different from default
-        bible_parser = self.bible_parser
-        if bible_version != "kjv" or self.bible_parser.bible_version != bible_version:
-            from bible_parser import BibleParser
+        raw_llm_output = (
+            completion.choices[0].message.content if completion.choices else ""
+        )
+        prompt_tokens = completion.usage.prompt_tokens if completion.usage else 0
+        completion_tokens = (
+            completion.usage.completion_tokens if completion.usage else 0
+        )
 
-            bible_parser = BibleParser(self.logger, bible_version=bible_version)
+        return {
+            "raw_output": raw_llm_output,
+            "latency_ms": latency_ms,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+        }
 
-        # Initialize our list of already‐printed passages
-        if "printed_passages" not in session:
-            session["printed_passages"] = []
-
-        # Get conversation history with version-specific system prompt
-        if (
-            "conversation_history" not in session
-            or session.get("bible_version") != bible_version
-        ):
-            # Build system prompt with current Bible version's available books
-            available_books = bible_parser.get_available_books()
-            system_prompt = self._build_system_prompt(available_books)
-            session["conversation_history"] = [
-                {"role": "system", "content": system_prompt}
-            ]
-            session["bible_version"] = bible_version
-
-        current_history = list(session["conversation_history"])
-        current_history.append({"role": "user", "content": user_query})
-
-        raw_llm_output = None
+    def _try_model_with_retries(self, model_name, session, user_query, current_history):
+        """Try a single model with retries, return success or failure."""
         last_failed_output_for_reprompt = None
 
         for attempt in range(self.MAX_RETRIES):
@@ -234,25 +253,10 @@ Begin."""
                 )
 
             try:
-                self.logger.info(
-                    f"LLM API Call Attempt {attempt + 1} for query: '{user_query}'. Model: '{self.model_name}'. Messages length: {len(messages_for_api_call)}"
+                api_result = self._call_llm_api(
+                    model_name, messages_for_api_call, user_query, attempt
                 )
-                start_time = time.monotonic()
-                completion = self.client.chat.completions.create(
-                    model=self.model_name, messages=messages_for_api_call
-                )
-                end_time = time.monotonic()
-                latency_ms = (end_time - start_time) * 1000
-
-                raw_llm_output = (
-                    completion.choices[0].message.content if completion.choices else ""
-                )
-                prompt_tokens = (
-                    completion.usage.prompt_tokens if completion.usage else 0
-                )
-                completion_tokens = (
-                    completion.usage.completion_tokens if completion.usage else 0
-                )
+                raw_llm_output = api_result["raw_output"]
 
                 if not raw_llm_output or not raw_llm_output.strip():
                     self.logger.warn(
@@ -261,10 +265,7 @@ Begin."""
                     last_failed_output_for_reprompt = raw_llm_output
                     if attempt < self.MAX_RETRIES - 1:
                         continue
-                    self._update_conversation_history(
-                        session, current_history, user_query, raw_llm_output
-                    )
-                    return {"error": "LLM returned empty content after retries."}, 500
+                    return {"error": "empty_content", "raw_output": raw_llm_output}
 
                 extracted_json_str = self._extract_json_from_llm_output(raw_llm_output)
                 self.logger.debug(f"Attempting to parse JSON: <{extracted_json_str}>")
@@ -277,13 +278,7 @@ Begin."""
                     last_failed_output_for_reprompt = raw_llm_output
                     if attempt < self.MAX_RETRIES - 1:
                         continue
-                    self._update_conversation_history(
-                        session, current_history, user_query, raw_llm_output
-                    )
-                    self.logger.error(
-                        f"LLM output was not a list after retries. Query: '{user_query}', LLM Raw: '{raw_llm_output}'"
-                    )
-                    return {"error": "LLM output was not a list after retries."}, 500
+                    return {"error": "not_list", "raw_output": raw_llm_output}
 
                 valid_refs, weights = self._parse_llm_references_data(
                     references_data_list
@@ -296,12 +291,107 @@ Begin."""
                     last_failed_output_for_reprompt = raw_llm_output
                     if attempt < self.MAX_RETRIES - 1:
                         continue
-                    self._update_conversation_history(
-                        session, current_history, user_query, raw_llm_output
-                    )
-                    return {
-                        "error": "No valid references found in LLM output after retries."
-                    }, 500
+                    return {"error": "no_valid_refs", "raw_output": raw_llm_output}
+
+                # Success! Return the result
+                return {
+                    "success": True,
+                    "valid_refs": valid_refs,
+                    "weights": weights,
+                    "raw_output": raw_llm_output,
+                    "api_result": api_result,
+                }
+
+            except json.JSONDecodeError as e:
+                self.logger.warn(
+                    f"LLM response not valid JSON. Attempt {attempt + 1}. Error: {e}. Raw: '{raw_llm_output}'"
+                )
+                last_failed_output_for_reprompt = raw_llm_output
+                if attempt < self.MAX_RETRIES - 1:
+                    continue
+                return {"error": "invalid_json", "raw_output": raw_llm_output}
+
+            except APIConnectionError as e:
+                self.logger.error(
+                    f"OpenAI APIConnectionError on attempt {attempt + 1}: {e}"
+                )
+                if attempt < self.MAX_RETRIES - 1:
+                    continue
+                return {"error": "connection_error", "exception": e}
+            except RateLimitError as e:
+                self.logger.error(f"OpenAI RateLimitError: {e}")
+                return {"error": "rate_limit", "exception": e}
+            except APITimeoutError as e:
+                self.logger.error(f"OpenAI APITimeoutError on attempt {attempt+1}: {e}")
+                if attempt < self.MAX_RETRIES - 1:
+                    continue
+                return {"error": "timeout", "exception": e}
+            except APIError as e:
+                self.logger.error(
+                    f"OpenAI APIError: Status: {e.status_code}, Msg: {e.message}"
+                )
+                return {"error": "api_error", "exception": e}
+            except (IndexError, KeyError) as e:
+                self.logger.error(f"Error parsing LLM SDK response: {e}.")
+                if attempt < self.MAX_RETRIES - 1:
+                    continue
+                return {"error": "parsing_error", "exception": e}
+
+        return {"error": "max_retries_exceeded"}
+
+    def get_llm_bible_reference(self, session, user_query, bible_version="kjv"):
+        """Main method to get Bible references from LLM with fallback model support."""
+        if not self.client:
+            self.logger.error(
+                "OpenAI client not initialized. LLM functionality disabled."
+            )
+            return {"error": "LLM service is not configured on the server."}, 500
+
+        # Get cached bible parser for this version
+        bible_parser = self._get_cached_parser(bible_version)
+
+        # Initialize our list of already‐printed passages
+        if "printed_passages" not in session:
+            session["printed_passages"] = []
+
+        # Get conversation history with consistent English system prompt
+        if (
+            "conversation_history" not in session
+            or session.get("bible_version") != bible_version
+        ):
+            # Build system prompt with English book names for LLM consistency
+            english_books = self._get_english_book_names()
+            system_prompt = self._build_system_prompt(english_books)
+            session["conversation_history"] = [
+                {"role": "system", "content": system_prompt}
+            ]
+            session["bible_version"] = bible_version
+
+        current_history = list(session["conversation_history"])
+        current_history.append({"role": "user", "content": user_query})
+
+        # Build list of models to try
+        models_to_try = [self.model_name]
+        if self.fallback_model_name:
+            models_to_try.append(self.fallback_model_name)
+
+        # Try each model
+        for model_idx, model_name in enumerate(models_to_try):
+            if model_idx > 0:
+                self.logger.info(f"Falling back to model: {model_name}")
+            else:
+                self.logger.info(f"Trying primary model: {model_name}")
+
+            result = self._try_model_with_retries(
+                model_name, session, user_query, current_history
+            )
+
+            if result.get("success"):
+                # Success! Process the result
+                valid_refs = result["valid_refs"]
+                weights = result["weights"]
+                raw_llm_output = result["raw_output"]
+                api_result = result["api_result"]
 
                 # If we've already shown a passage, penalize its helpfulness by 3
                 for idx, ref in enumerate(valid_refs):
@@ -321,19 +411,22 @@ Begin."""
                 selected_weight = weights[selected_index]
 
                 self.logger.info(
-                    f"Selected reference: '{passage_reference}' (score: {selected_weight}). Query: '{user_query}'."
+                    f"Selected reference: '{passage_reference}' (score: {selected_weight}). Query: '{user_query}'. Model: '{model_name}'"
                 )
 
                 parsed_bible_ref = bible_parser.parse_reference(passage_reference)
                 if not parsed_bible_ref:
                     self.logger.warn(
-                        f"Could not parse selected LLM reference: '{passage_reference}'. Raw LLM: '{raw_llm_output}'"
+                        f"Could not parse selected LLM reference: '{passage_reference}' from model '{model_name}'. Raw LLM: '{raw_llm_output}'"
                     )
+                    # Try next model if available
+                    if model_idx < len(models_to_try) - 1:
+                        self.logger.info(
+                            f"Trying next model due to invalid reference from {model_name}"
+                        )
+                        continue
                     self._update_conversation_history(
                         session, current_history, user_query, raw_llm_output
-                    )
-                    self.logger.error(
-                        f"Could not parse selected LLM reference: '{passage_reference}'. Query: '{user_query}', LLM Raw: '{raw_llm_output}'"
                     )
                     return {
                         "error": f"Could not parse LLM reference: '{passage_reference}'."
@@ -343,8 +436,14 @@ Begin."""
 
                 if passage_text is None:
                     self.logger.error(
-                        f"Bible lookup failed for LLM reference: '{passage_reference}'. Query: '{user_query}', LLM Raw: '{raw_llm_output}'"
+                        f"Bible lookup failed for LLM reference: '{passage_reference}' from model '{model_name}'. Query: '{user_query}', LLM Raw: '{raw_llm_output}'"
                     )
+                    # Try next model if available
+                    if model_idx < len(models_to_try) - 1:
+                        self.logger.info(
+                            f"Trying next model due to failed Bible lookup from {model_name}"
+                        )
+                        continue
                     self._update_conversation_history(
                         session, current_history, user_query, raw_llm_output
                     )
@@ -362,84 +461,61 @@ Begin."""
                 return {
                     "response": passage_text,
                     "score": selected_weight,
-                    "latency_ms": latency_ms,
-                    "prompt_tokens": prompt_tokens,
-                    "completion_tokens": completion_tokens,
+                    "model_used": model_name,
+                    "latency_ms": api_result["latency_ms"],
+                    "prompt_tokens": api_result["prompt_tokens"],
+                    "completion_tokens": api_result["completion_tokens"],
                 }, 200
 
-            except json.JSONDecodeError as e:
-                self.logger.warn(
-                    f"LLM response not valid JSON. Attempt {attempt + 1}. Error: {e}. Raw: '{raw_llm_output}'"
-                )
-                last_failed_output_for_reprompt = raw_llm_output
-                if attempt < self.MAX_RETRIES - 1:
+            # Handle errors - try fallback model if available, otherwise stop
+            elif result.get("error") == "rate_limit":
+                e = result["exception"]
+                self.logger.error(f"OpenAI RateLimitError for {model_name}: {e}")
+                # Try next model if available
+                if model_idx < len(models_to_try) - 1:
+                    self.logger.info(
+                        f"Rate limited on {model_name}, trying fallback model"
+                    )
                     continue
-                self._update_conversation_history(
-                    session, current_history, user_query, raw_llm_output
-                )
-                return {"error": "LLM response not valid JSON after retries."}, 500
-
-            except APIConnectionError as e:
-                self.logger.error(
-                    f"OpenAI APIConnectionError on attempt {attempt + 1}: {e}"
-                )
-                if attempt < self.MAX_RETRIES - 1:
-                    continue
+                # No more models to try
                 self._update_conversation_history(
                     session,
                     current_history,
                     user_query,
-                    "Error: Could not connect to the LLM service.",
-                )
-                return {"error": "Error: Could not connect to the LLM service."}, 503
-            except RateLimitError as e:
-                self.logger.error(f"OpenAI RateLimitError: {e}")
-                self._update_conversation_history(
-                    session,
-                    current_history,
-                    user_query,
-                    "Error: Rate limit exceeded with the LLM service.",
+                    "Error: Rate limit exceeded with all available LLM services.",
                 )
                 return {
-                    "error": "Error: Rate limit exceeded with the LLM service. Please try again later."
+                    "error": "Error: Rate limit exceeded with all available LLM services. Please try again later."
                 }, 429
-            except APITimeoutError as e:
-                self.logger.error(f"OpenAI APITimeoutError on attempt {attempt+1}: {e}")
-                if attempt < self.MAX_RETRIES - 1:
+            elif result.get("error") == "api_error":
+                e = result["exception"]
+                self.logger.error(f"OpenAI APIError for {model_name}: {e}")
+                # Try next model if available
+                if model_idx < len(models_to_try) - 1:
+                    self.logger.info(
+                        f"API error on {model_name}, trying fallback model"
+                    )
                     continue
-                self._update_conversation_history(
-                    session,
-                    current_history,
-                    user_query,
-                    "Error: Request to LLM service timed out.",
-                )
-                return {"error": "Error: Request to LLM service timed out."}, 504
-            except APIError as e:
-                self.logger.error(
-                    f"OpenAI APIError: Status: {e.status_code}, Msg: {e.message}"
-                )
+                # No more models to try
                 error_message = f"LLM service error: {e.message}"
                 self._update_conversation_history(
                     session, current_history, user_query, f"Error: {error_message}"
                 )
                 return {"error": error_message}, e.status_code or 500
-            except (IndexError, KeyError) as e:
-                self.logger.error(
-                    f"Error parsing LLM SDK response: {e}. Completion: {completion if 'completion' in locals() else 'N/A'}"
-                )
-                failed_msg = "Error: Received an unexpected response structure from the LLM service."
-                self._update_conversation_history(
-                    session, current_history, user_query, failed_msg
-                )
-                return {"error": failed_msg}, 500
 
-        # Fallback if loop finishes
+            # For other errors, try next model if available
+            self.logger.warn(
+                f"Model {model_name} failed with error: {result.get('error')}"
+            )
+
+        # All models failed
+        final_error = (
+            "Failed to get a valid response from LLM after trying all available models."
+        )
         self._update_conversation_history(
             session,
             current_history,
             user_query,
-            "Failed to get a valid response from LLM after multiple retries.",
+            final_error,
         )
-        return {
-            "error": "Failed to get a valid response from LLM after multiple retries."
-        }, 500
+        return {"error": final_error}, 500

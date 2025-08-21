@@ -101,7 +101,11 @@ bible_parser = BibleParser(app.logger)
 
 # Initialize LLMHandler
 llm_handler = LLMHandler(
-    client, app.logger, bible_parser, "deepseek/deepseek-chat-v3-0324:free"
+    client,
+    app.logger,
+    bible_parser,
+    "deepseek/deepseek-chat-v3-0324:free",
+    "qwen/qwen3-235b-a22b:free",
 )
 
 # Initialize Telegram handler after all components are ready
