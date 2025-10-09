@@ -105,7 +105,7 @@ llm_handler = LLMHandler(
     app.logger,
     bible_parser,
     "deepseek/deepseek-chat-v3-0324:free",
-    "qwen/qwen3-235b-a22b:free",
+    "google/gemini-2.5-flash-lite",
 )
 
 # Initialize Telegram handler after all components are ready
